@@ -23,11 +23,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          Colors.indigo.shade900, // Fallback if AppTheme is causing issues
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Settings'),
-        backgroundColor: Colors.indigo.shade900,
+        backgroundColor: Colors.black,
         elevation: 0,
       ),
       body: ListView(
@@ -41,10 +40,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             (value) => setState(() => _autoRecording = value),
           ),
           _buildDropdownTile(),
-
           _buildHeader('Detection Settings'),
           _buildSliderTile(),
-
           _buildHeader('Notifications'),
           _buildSwitchTile(
             'High Risk Alerts',
@@ -52,7 +49,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _notifyHighRisk,
             (value) => setState(() => _notifyHighRisk = value),
           ),
-
           _buildHeader('App Info'),
           ListTile(
             title: const Text(
@@ -75,10 +71,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.only(top: 16.0, bottom: 8.0),
       child: Text(
         title,
-        style: TextStyle(
+        style: const TextStyle(
           fontSize: 18.0,
           fontWeight: FontWeight.bold,
-          color: Colors.teal.shade400, // Fallback if AppTheme is causing issues
+          color: Colors.white,
         ),
       ),
     );
@@ -93,7 +89,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4.0),
       decoration: BoxDecoration(
-        color: Colors.indigo.shade800,
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: ListTile(
@@ -102,7 +98,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         trailing: Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: Colors.teal.shade400,
+          activeColor: AppTheme.primaryColor,
         ),
       ),
     );
@@ -112,7 +108,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4.0),
       decoration: BoxDecoration(
-        color: Colors.indigo.shade800,
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: ListTile(
@@ -126,26 +122,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         trailing: DropdownButton<String>(
           value: _recordingDuration,
-          dropdownColor: Colors.indigo.shade700,
+          dropdownColor: Colors.black,
           underline: Container(),
           icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
           items:
-              _durationOptions.map((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(
-                    value,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                );
-              }).toList(),
-          onChanged: (String? newValue) {
-            if (newValue != null) {
-              setState(() {
-                _recordingDuration = newValue;
-              });
-            }
-          },
+              _durationOptions
+                  .map(
+                    (value) => DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(
+                        value,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  )
+                  .toList(),
+          onChanged:
+              (newValue) => setState(() => _recordingDuration = newValue!),
         ),
       ),
     );
@@ -156,7 +149,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       margin: const EdgeInsets.symmetric(vertical: 4.0),
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
-        color: Colors.indigo.shade800,
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(8.0),
       ),
       child: Column(
@@ -178,13 +171,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   min: 1.0,
                   max: 3.0,
                   divisions: 2,
-                  activeColor: Colors.teal.shade400,
-                  inactiveColor: Colors.indigo.shade600,
-                  onChanged: (double value) {
-                    setState(() {
-                      _sensitivityLevel = value;
-                    });
-                  },
+                  activeColor: AppTheme.primaryColor,
+                  inactiveColor: Colors.grey.shade800,
+                  onChanged:
+                      (value) => setState(() => _sensitivityLevel = value),
                 ),
               ),
               const Text('High', style: TextStyle(color: Colors.white70)),
@@ -198,41 +188,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showSimpleAboutDialog() {
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: Colors.indigo.shade800,
-          title: const Text(
-            'About APNEA-AID',
-            style: TextStyle(color: Colors.white),
-          ),
-          content: const Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'APNEA-AID is an AI-powered sleep apnea detection app that monitors your breathing patterns during sleep.',
-                style: TextStyle(color: Colors.white70),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'Disclaimer: This app is not a medical device and should not replace professional medical advice.',
-                style: TextStyle(color: Colors.redAccent, fontSize: 12),
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: Colors.black,
+            title: const Text(
+              'About APNEA-AID',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'AI-powered sleep apnea detection app',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Not a medical device',
+                  style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  'Close',
+                  style: TextStyle(color: AppTheme.primaryColor),
+                ),
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text(
-                'Close',
-                style: TextStyle(color: Colors.teal.shade400),
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

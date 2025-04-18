@@ -1,129 +1,111 @@
 import 'dart:async';
-import 'dart:math';
-import 'package:intl/intl.dart';
+
 import '../models/sleep_record.dart';
 
 class SleepDetectorService {
   bool _isRecording = false;
-  final StreamController<int> _irregularitiesController =
-      StreamController<int>.broadcast();
-  final StreamController<List<SleepRecord>> _recordsController =
-      StreamController<List<SleepRecord>>.broadcast();
-
-  // In-memory storage for records (would be replaced with a database in a real app)
+  int _irregularities = 0;
   final List<SleepRecord> _records = [];
 
-  // Current session data
-  int _currentIrregularities = 0;
-  Timer? _simulationTimer;
+  // Controllers for streams
+  final _irregularitiesController = StreamController<int>.broadcast();
+  final _recordsController = StreamController<List<SleepRecord>>.broadcast();
 
+  // Mock data for initial load
   SleepDetectorService() {
-    // Initialize with some sample data
-    _initializeSampleData();
+    _records.addAll([
+      SleepRecord(
+        date: 'Apr 18, 2025',
+        duration: 8.0,
+        irregularities: 0,
+        severity: 'Low',
+        id: '',
+      ),
+      SleepRecord(
+        date: 'Apr 17, 2025',
+        duration: 7.5,
+        irregularities: 12,
+        severity: 'Medium',
+        id: '',
+      ),
+      SleepRecord(
+        date: 'Apr 16, 2025',
+        duration: 6.0,
+        irregularities: 28,
+        severity: 'High',
+        id: '',
+      ),
+    ]);
   }
 
-  void _initializeSampleData() {
-    // Today's date
-    final now = DateTime.now();
-    final dateFormat = DateFormat('MMM d, yyyy');
-
-    // Add some sample records for the past few days
-    for (int i = 0; i < 4; i++) {
-      final date = now.subtract(Duration(days: i));
-      final dateStr = dateFormat.format(date);
-
-      // Generate irregularities based on a pattern
-      final irregularities = 5 + (i % 3 == 0 ? 1 : (i % 3 == 1 ? 2 : 3));
-
-      // Determine severity based on irregularities
-      String severity;
-      if (irregularities < 6) {
-        severity = 'LOW';
-      } else if (irregularities < 8) {
-        severity = 'MED';
-      } else {
-        severity = 'HIGH';
-      }
-
-      _records.add(
-        SleepRecord(
-          id: 'record_${date.millisecondsSinceEpoch}',
-          date: dateStr,
-          irregularities: irregularities,
-          severity: severity,
-          duration: 8.0,
-        ),
-      );
-    }
-
-    // Add records to stream
-    _recordsController.add(_records);
+  // Initialize service (can be used for permissions or setup)
+  void init() {
+    // Initialize necessary components
+    // For MVP, we're just setting up streams
   }
 
+  // Access streams
   Stream<int> get irregularitiesStream => _irregularitiesController.stream;
   Stream<List<SleepRecord>> get recordsStream => _recordsController.stream;
-  bool get isRecording => _isRecording;
 
+  // Start recording
   void startRecording() {
     if (_isRecording) return;
 
     _isRecording = true;
-    _currentIrregularities = 0;
-    _irregularitiesController.add(_currentIrregularities);
+    _irregularities = 0;
+    _irregularitiesController.add(_irregularities);
 
-    // Simulate detecting irregularities
-    _simulationTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      // Simulate detecting an irregularity occasionally
-      if (Random().nextInt(3) == 0) {
-        _currentIrregularities++;
-        _irregularitiesController.add(_currentIrregularities);
+    // Simulate irregularities detection
+    Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (!_isRecording) {
+        timer.cancel();
+        return;
+      }
+
+      // Randomly increase irregularities (for demo purposes)
+      if (DateTime.now().second % 10 == 0) {
+        _irregularities++;
+        _irregularitiesController.add(_irregularities);
       }
     });
   }
 
+  // Stop recording
   void stopRecording() {
     if (!_isRecording) return;
 
     _isRecording = false;
-    _simulationTimer?.cancel();
 
-    // Save the recording
-    final now = DateTime.now();
-    final dateFormat = DateFormat('MMM d, yyyy');
-
-    // Determine severity based on irregularities
-    String severity;
-    if (_currentIrregularities < 6) {
-      severity = 'LOW';
-    } else if (_currentIrregularities < 8) {
-      severity = 'MED';
-    } else {
-      severity = 'HIGH';
-    }
-
-    final record = SleepRecord(
-      id: 'record_${now.millisecondsSinceEpoch}',
-      date: dateFormat.format(now),
-      irregularities: _currentIrregularities,
-      severity: severity,
-      duration: 8.0,
+    // Create a new record
+    final newRecord = SleepRecord(
+      date: DateTime.now().toString().substring(0, 10),
+      duration: 8.0, // Mock duration
+      irregularities: _irregularities,
+      severity: _getSeverity(_irregularities),
+      id: '',
     );
 
-    _records.insert(0, record);
+    _records.insert(0, newRecord);
     _recordsController.add(_records);
-
-    // Reset current irregularities
-    _currentIrregularities = 0;
-    _irregularitiesController.add(_currentIrregularities);
   }
 
-  List<SleepRecord> getRecords() {
-    return _records;
+  // Get severity based on irregularities count
+  String _getSeverity(int irregularities) {
+    if (irregularities < 5) return 'Low';
+    if (irregularities < 20) return 'Medium';
+    return 'High';
   }
 
+  // Get all records
+  List<SleepRecord> getRecords() => _records;
+
+  // Check if recording
+  bool get isRecording => _isRecording;
+
+  // Dispose resources
   void dispose() {
     _irregularitiesController.close();
     _recordsController.close();
-    _simulationTimer?.cancel();
   }
 }

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 import '../theme/app_theme.dart';
 import '../services/sleep_detector_service.dart';
-import '../widgets/sleep_record_card.dart';
-import '../models/sleep_record.dart'; // Ensure SleepRecord is imported from the correct file
+import '../models/sleep_record.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -16,18 +17,81 @@ class _HomeScreenState extends State<HomeScreen>
   final SleepDetectorService _sleepDetectorService = SleepDetectorService();
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
+  late Animation<double> _rotationAnimation;
+
+  // Hourly data for the bar chart - simplified to make visualization clearer
+  final List<double> hourlyData = [
+    0.2,
+    0.3,
+    0.1,
+    0.2,
+    0.1,
+    0.3,
+    0.7,
+    0.2,
+    0.3,
+    0.5,
+    0.2,
+    0.3,
+    0.1,
+    0.2,
+    0.8,
+    0.3,
+    0.1,
+    0.2,
+    0.3,
+    0.1,
+    0.2,
+    0.1,
+    0.2,
+    0.1,
+  ];
+
+  // Mock data for the sleep quality graph - corrected to remove duplicates
+  final List<FlSpot> weeklyData = [
+    FlSpot(0, 5), // Monday
+    FlSpot(1, 6), // Tuesday
+    FlSpot(2, 8), // Wednesday
+    FlSpot(3, 6), // Thursday
+    FlSpot(4, 6), // Friday
+    FlSpot(5, 7), // Saturday
+    FlSpot(6, 6), // Sunday
+  ];
+
+  // Day labels for the weekly chart
+  final List<String> weekDays = [
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
 
   @override
   void initState() {
     super.initState();
+    // Fix: Initialize animation controller first
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
+      duration: const Duration(seconds: 3),
+    );
 
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+    // Then initialize animations that depend on it
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.08).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
+
+    _rotationAnimation = Tween<double>(begin: 0, end: 2 * math.pi).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.linear),
+    );
+
+    // Start the animation
+    _animationController.repeat();
+
+    // Make sure the service is ready
+    _sleepDetectorService.init();
   }
 
   @override
@@ -37,157 +101,553 @@ class _HomeScreenState extends State<HomeScreen>
     super.dispose();
   }
 
+  void _toggleRecording() {
+    try {
+      if (_sleepDetectorService.isRecording) {
+        _sleepDetectorService.stopRecording();
+      } else {
+        _sleepDetectorService.startRecording();
+      }
+      setState(() {}); // Refresh UI
+    } catch (e) {
+      // Handle any errors silently to prevent red screen
+      debugPrint("Error toggling recording: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      // Updated to pure black background like Opal
+      backgroundColor: Colors.black,
       body: SafeArea(
-        child: Column(
+        child: Stack(
           children: [
-            const SizedBox(height: 20),
-            // App title
-            Text('APNEA-AID', style: Theme.of(context).textTheme.headlineLarge),
-            const SizedBox(height: 30),
+            // Background gradient glow effect
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: [
+                      Colors.deepPurple.withOpacity(0.15),
+                      Colors.black.withOpacity(0.0),
+                    ],
+                    center: Alignment.topCenter,
+                    radius: 0.8,
+                  ),
+                ),
+              ),
+            ),
 
-            // Main content
-            Expanded(
-              child: StreamBuilder<int>(
-                stream: _sleepDetectorService.irregularitiesStream,
-                initialData: 0,
-                builder: (context, snapshot) {
-                  final irregularities = snapshot.data ?? 0;
+            SingleChildScrollView(
+              child: Column(
+                children: [
+                  const SizedBox(height: 24),
 
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Start button
-                      GestureDetector(
-                        onTap: _toggleRecording,
-                        child: AnimatedBuilder(
-                          animation: _animationController,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale:
-                                  _sleepDetectorService.isRecording
-                                      ? _pulseAnimation.value
-                                      : 1.0,
-                              child: Container(
-                                width: 180,
-                                height: 180,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: AppTheme.primaryColor,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppTheme.primaryColor.withOpacity(
-                                        0.3,
-                                      ),
-                                      blurRadius: 20,
-                                      spreadRadius: 5,
-                                    ),
-                                  ],
-                                  border: Border.all(
-                                    color: AppTheme.accentColor,
-                                    width: 4,
-                                  ),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    _sleepDetectorService.isRecording
-                                        ? 'STOP'
-                                        : 'START',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
+                  // App title with updated styling
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Updated app title to be more modern
+                        const Text(
+                          'APNEA-AID',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 30),
+                        // Notification icon with more elegant styling
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.notifications_none_outlined,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-                      // Statistics
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  // Main content
+                  StreamBuilder<int>(
+                    stream: _sleepDetectorService.irregularitiesStream,
+                    initialData: 0,
+                    builder: (context, snapshot) {
+                      final irregularities = snapshot.data ?? 0;
+
+                      return Column(
                         children: [
+                          const SizedBox(height: 40),
+
+                          // Start button with enhanced glow effect (Opal-inspired)
+                          GestureDetector(
+                            onTap: _toggleRecording,
+                            child: AnimatedBuilder(
+                              animation: _animationController,
+                              builder: (context, child) {
+                                return Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    // Enhanced outer glow
+                                    Transform.scale(
+                                      scale:
+                                          _sleepDetectorService.isRecording
+                                              ? _pulseAnimation.value
+                                              : 1.0,
+                                      child: Container(
+                                        width: 180,
+                                        height: 180,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: RadialGradient(
+                                            colors: [
+                                              const Color(
+                                                0xFF4AEDC4,
+                                              ).withOpacity(0.4),
+                                              const Color(
+                                                0xFF4AEDC4,
+                                              ).withOpacity(0.0),
+                                            ],
+                                            stops: const [0.4, 1.0],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    // Main button - Opal-inspired gem effect
+                                    Container(
+                                      width: 140,
+                                      height: 140,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: const LinearGradient(
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                          colors: [
+                                            Color(0xFF4AEDC4),
+                                            Color(0xFF3ECFAD),
+                                          ],
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(
+                                              0xFF4AEDC4,
+                                            ).withOpacity(0.4),
+                                            blurRadius: 20,
+                                            spreadRadius: 5,
+                                          ),
+                                        ],
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.3),
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          _sleepDetectorService.isRecording
+                                              ? 'STOP'
+                                              : 'START',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    // Rotating dots (when recording) - fixed initialization
+                                    if (_sleepDetectorService.isRecording)
+                                      Transform.rotate(
+                                        angle: _rotationAnimation.value,
+                                        child: SizedBox(
+                                          width: 180,
+                                          height: 180,
+                                          child: CustomPaint(
+                                            painter: DottedCirclePainter(
+                                              dotColor: Colors.white,
+                                              dotSize: 3,
+                                              numberOfDots: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+
+                          // Statistics with enhanced styling
                           Column(
                             children: [
                               Text(
                                 '$irregularities',
                                 style: const TextStyle(
-                                  fontSize: 36,
+                                  fontSize: 48,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
                               ),
                               const Text(
-                                'Irregularities',
+                                'Irregularities Detected',
                                 style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
+                                  fontSize: 16,
+                                  color: Colors.white70,
                                 ),
                               ),
                             ],
                           ),
+
+                          const SizedBox(height: 40),
+
+                          // Hourly activity bars (improved visualization)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Hourly Apnea Events',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Container(
+                                  height: 80,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.1),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: List.generate(
+                                      hourlyData.length,
+                                      (index) => Expanded(
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 1,
+                                          ),
+                                          child: Column(
+                                            children: [
+                                              Expanded(
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          4,
+                                                        ),
+                                                  ),
+                                                  width: double.infinity,
+                                                  alignment:
+                                                      Alignment.bottomCenter,
+                                                  child: FractionallySizedBox(
+                                                    heightFactor:
+                                                        hourlyData[index],
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
+                                                        color: _getBarColor(
+                                                          hourlyData[index],
+                                                        ),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              2,
+                                                            ),
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: _getBarColor(
+                                                              hourlyData[index],
+                                                            ).withOpacity(0.6),
+                                                            blurRadius: 4,
+                                                            spreadRadius: 0,
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              // Show hour labels every 6 hours
+                                              if (index % 6 == 0)
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 4,
+                                                      ),
+                                                  child: Text(
+                                                    '${index}h',
+                                                    style: TextStyle(
+                                                      color: Colors.white
+                                                          .withOpacity(0.6),
+                                                      fontSize: 10,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 40),
+
+                          // Weekly graph (fixed day labels)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Weekly Sleep Quality',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Container(
+                                  height: 180,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.1),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(16),
+                                  child: LineChart(
+                                    LineChartData(
+                                      gridData: FlGridData(
+                                        show: true,
+                                        drawVerticalLine: true,
+                                        horizontalInterval: 2,
+                                        verticalInterval: 1,
+                                        getDrawingHorizontalLine: (value) {
+                                          return FlLine(
+                                            color: Colors.white10,
+                                            strokeWidth: 1,
+                                          );
+                                        },
+                                        getDrawingVerticalLine: (value) {
+                                          return FlLine(
+                                            color: Colors.white10,
+                                            strokeWidth: 1,
+                                          );
+                                        },
+                                      ),
+                                      titlesData: FlTitlesData(
+                                        leftTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: false,
+                                          ),
+                                        ),
+                                        bottomTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: true,
+                                            getTitlesWidget: (value, meta) {
+                                              const style = TextStyle(
+                                                color: Colors.white54,
+                                                fontSize: 11,
+                                              );
+
+                                              if (value.toInt() >= 0 &&
+                                                  value.toInt() <
+                                                      weekDays.length) {
+                                                return Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        top: 8.0,
+                                                      ),
+                                                  child: Text(
+                                                    weekDays[value.toInt()],
+                                                    style: style,
+                                                  ),
+                                                );
+                                              }
+                                              return const Text(
+                                                '',
+                                                style: style,
+                                              );
+                                            },
+                                            reservedSize: 30,
+                                          ),
+                                        ),
+                                        rightTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: false,
+                                          ),
+                                        ),
+                                        topTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: false,
+                                          ),
+                                        ),
+                                      ),
+                                      borderData: FlBorderData(show: false),
+                                      minX: 0,
+                                      maxX: 6,
+                                      minY: 0,
+                                      maxY: 10,
+                                      lineBarsData: [
+                                        LineChartBarData(
+                                          spots: weeklyData,
+                                          isCurved: true,
+                                          color: const Color(0xFF4AEDC4),
+                                          barWidth: 3,
+                                          isStrokeCapRound: true,
+                                          dotData: FlDotData(
+                                            show: true,
+                                            getDotPainter: (
+                                              spot,
+                                              percent,
+                                              barData,
+                                              index,
+                                            ) {
+                                              Color dotColor = const Color(
+                                                0xFF4AEDC4,
+                                              );
+                                              // Highlight the last dot (today)
+                                              if (index ==
+                                                  weeklyData.length - 1) {
+                                                dotColor = Colors.white;
+                                              }
+                                              return FlDotCirclePainter(
+                                                radius:
+                                                    index ==
+                                                            weeklyData.length -
+                                                                1
+                                                        ? 4
+                                                        : 3,
+                                                color: dotColor,
+                                                strokeWidth: 2,
+                                                strokeColor: const Color(
+                                                  0xFF4AEDC4,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          belowBarData: BarAreaData(
+                                            show: true,
+                                            gradient: LinearGradient(
+                                              colors: [
+                                                const Color(
+                                                  0xFF4AEDC4,
+                                                ).withOpacity(0.4),
+                                                const Color(
+                                                  0xFF4AEDC4,
+                                                ).withOpacity(0.0),
+                                              ],
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      lineTouchData: LineTouchData(
+                                        touchTooltipData: LineTouchTooltipData(
+                                          tooltipBgColor: const Color(
+                                            0xFF4AEDC4,
+                                          ).withOpacity(0.8),
+                                          getTooltipItems: (touchedSpots) {
+                                            return touchedSpots.map((
+                                              touchedSpot,
+                                            ) {
+                                              return LineTooltipItem(
+                                                'Score: ${touchedSpot.y.toInt()}',
+                                                const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              );
+                                            }).toList();
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                              ],
+                            ),
+                          ),
+
+                          // Add extra space at the bottom to ensure content isn't hidden by nav bar
+                          const SizedBox(height: 80),
                         ],
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-
-            // Recent records
-            Expanded(
-              child: StreamBuilder<List<SleepRecord>>(
-                stream: _sleepDetectorService.recordsStream,
-                initialData: _sleepDetectorService.getRecords(),
-                builder: (context, snapshot) {
-                  final records = snapshot.data ?? [];
-
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: records.length,
-                    itemBuilder: (context, index) {
-                      return SleepRecordCard(record: records[index]);
-                    },
-                  );
-                },
-              ),
-            ),
-
-            // Bottom navigation
-            Container(
-              height: 60,
-              color: AppTheme.backgroundColor.withOpacity(0.8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.settings, color: Colors.white70),
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/settings');
-                    },
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.home,
-                      color: AppTheme.primaryColor,
-                      size: 32,
-                    ),
-                    onPressed: () {},
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.history, color: Colors.white70),
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/history');
+                      );
                     },
                   ),
                 ],
+              ),
+            ),
+
+            // Fixed position bottom navigation - moved to bottom of screen
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                height: 70,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.8),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.1),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _buildNavItem(
+                      Icons.settings_outlined,
+                      'Settings',
+                      false,
+                      () {
+                        Navigator.pushNamed(context, '/settings');
+                      },
+                    ),
+                    _buildNavItem(Icons.home_rounded, 'Home', true, () {}),
+                    _buildNavItem(Icons.history_outlined, 'History', false, () {
+                      Navigator.pushNamed(context, '/history');
+                    }),
+                  ],
+                ),
               ),
             ),
           ],
@@ -196,11 +656,88 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  void _toggleRecording() {
-    if (_sleepDetectorService.isRecording) {
-      _sleepDetectorService.stopRecording();
+  Widget _buildNavItem(
+    IconData icon,
+    String label,
+    bool isActive,
+    VoidCallback onTap,
+  ) {
+    final Color activeColor = const Color(0xFF4AEDC4);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: isActive ? activeColor : Colors.white60,
+            size: isActive ? 28 : 24,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isActive ? activeColor : Colors.white60,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Get color based on value with enhanced colors
+  Color _getBarColor(double value) {
+    if (value < 0.3) {
+      return const Color(0xFF4AEDC4); // Teal
+    } else if (value < 0.6) {
+      return const Color(0xFFFFCC00); // Amber
     } else {
-      _sleepDetectorService.startRecording();
+      return const Color(0xFFFF5677); // Pinkish-Red
     }
   }
+}
+
+// Custom painter for the dotted circle animation
+class DottedCirclePainter extends CustomPainter {
+  final Color dotColor;
+  final double dotSize;
+  final int numberOfDots;
+
+  DottedCirclePainter({
+    required this.dotColor,
+    required this.dotSize,
+    required this.numberOfDots,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+    final paint =
+        Paint()
+          ..color = dotColor
+          ..style = PaintingStyle.fill;
+
+    for (int i = 0; i < numberOfDots; i++) {
+      // We only draw a subset of dots to create a partial circle
+      if (i % 3 == 0) {
+        final angle = 2 * math.pi * i / numberOfDots;
+        final offset = Offset(
+          center.dx + radius * math.cos(angle),
+          center.dy + radius * math.sin(angle),
+        );
+
+        // Vary dot opacity based on position
+        final opacity = 0.2 + (0.8 * (i / numberOfDots));
+        paint.color = dotColor.withOpacity(opacity);
+
+        canvas.drawCircle(offset, dotSize, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

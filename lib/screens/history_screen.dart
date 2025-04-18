@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../services/sleep_detector_service.dart';
 import '../widgets/sleep_record_card.dart';
-import '../models/sleep_record.dart'; // Ensure SleepRecord is imported
+import '../models/sleep_record.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({Key? key}) : super(key: key);
@@ -17,10 +17,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text('Sleep History'),
-        backgroundColor: AppTheme.backgroundColor,
+        backgroundColor: Colors.black,
         elevation: 0,
       ),
       body: StreamBuilder<List<SleepRecord>>(
@@ -28,19 +28,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
         initialData: _sleepDetectorService.getRecords(),
         builder: (context, snapshot) {
           final records = snapshot.data ?? [];
-          
-          if (records.isEmpty) {
-            return const Center(
-              child: Text('No sleep records yet'),
-            );
-          }
-          
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: records.length,
-            itemBuilder: (context, index) {
-              return SleepRecordCard(record: records[index]);
-            },
+            itemBuilder:
+                (context, index) => SleepRecordCard(record: records[index]),
           );
         },
       ),
