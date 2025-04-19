@@ -441,40 +441,6 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
 
                           const SizedBox(height: 30),
-
-                          // Sleep quality distribution
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Sleep Quality Distribution',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Container(
-                                  height: 180,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.05),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.1),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  padding: const EdgeInsets.all(16),
-                                  child: _buildSleepQualityDistribution(),
-                                ),
-                              ],
-                            ),
-                          ),
-                          
-                          const SizedBox(height: 30),
                           
                           // Sleep duration trend
                           Padding(
@@ -694,120 +660,6 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
   
-  // Sleep quality distribution (pie chart)
-  Widget _buildSleepQualityDistribution() {
-    // If no records, show empty state
-    if (_recentRecords.isEmpty) {
-      return const Center(
-        child: Text(
-          'No sleep data available yet',
-          style: TextStyle(color: Colors.white60),
-        ),
-      );
-    }
-    
-    // Count different quality levels
-    int lowCount = 0;
-    int mediumCount = 0;
-    int highCount = 0;
-    
-    for (final record in _recentRecords) {
-      switch (record.severity.toLowerCase()) {
-        case 'low':
-          lowCount++;
-          break;
-        case 'medium':
-        case 'med':
-          mediumCount++;
-          break;
-        case 'high':
-          highCount++;
-          break;
-      }
-    }
-    
-    final totalRecords = lowCount + mediumCount + highCount;
-    
-    debugPrint("HomeScreen Chart: Sleep quality distribution - Low: $lowCount, Medium: $mediumCount, High: $highCount");
-    
-    return totalRecords == 0
-        ? const Center(
-            child: Text(
-              'No sleep data available yet',
-              style: TextStyle(color: Colors.white60),
-            ),
-          )
-        : Row(
-            children: [
-              // Pie chart
-              Expanded(
-                flex: 3,
-                child: PieChart(
-                  PieChartData(
-                    sections: [
-                      if (lowCount > 0)
-                        PieChartSectionData(
-                          value: lowCount.toDouble(),
-                          title: '${((lowCount / totalRecords) * 100).round()}%',
-                          color: AppTheme.lowRiskColor,
-                          radius: 60,
-                          titleStyle: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      if (mediumCount > 0)
-                        PieChartSectionData(
-                          value: mediumCount.toDouble(),
-                          title: '${((mediumCount / totalRecords) * 100).round()}%',
-                          color: AppTheme.mediumRiskColor,
-                          radius: 60,
-                          titleStyle: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      if (highCount > 0)
-                        PieChartSectionData(
-                          value: highCount.toDouble(),
-                          title: '${((highCount / totalRecords) * 100).round()}%',
-                          color: AppTheme.highRiskColor,
-                          radius: 60,
-                          titleStyle: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                    ],
-                    centerSpaceRadius: 0,
-                    sectionsSpace: 2,
-                    startDegreeOffset: 180,
-                  ),
-                ),
-              ),
-              
-              // Legend
-              Expanded(
-                flex: 2,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildLegendItem('Good', lowCount, AppTheme.lowRiskColor),
-                    const SizedBox(height: 12),
-                    _buildLegendItem('Fair', mediumCount, AppTheme.mediumRiskColor),
-                    const SizedBox(height: 12),
-                    _buildLegendItem('Poor', highCount, AppTheme.highRiskColor),
-                  ],
-                ),
-              ),
-            ],
-          );
-  }
-  
   // Sleep duration chart
   Widget _buildSleepDurationChart() {
     // If no records, show empty state
@@ -980,29 +832,6 @@ class _HomeScreenState extends State<HomeScreen>
     return FlLine(
       color: Colors.white10,
       strokeWidth: 1,
-    );
-  }
-  
-  Widget _buildLegendItem(String label, int count, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(
-            color: color,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          '$label ($count)',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 12,
-          ),
-        ),
-      ],
     );
   }
   
