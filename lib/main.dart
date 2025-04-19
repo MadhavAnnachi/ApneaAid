@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/history_screen.dart';
+import 'screens/trends_screen.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -27,6 +28,7 @@ class RespireGuardApp extends StatelessWidget {
       routes: {
         '/settings': (context) => const SettingsScreen(),
         '/history': (context) => const HistoryScreen(),
+        '/trends': (context) => const TrendsScreen(),
       },
       debugShowCheckedModeBanner: false,
     );

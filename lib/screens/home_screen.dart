@@ -103,6 +103,10 @@ class _HomeScreenState extends State<HomeScreen>
 
   void _toggleRecording() {
     try {
+      // Reset animation controller to make dots start from beginning
+      _animationController.reset();
+      _animationController.repeat();
+    
       if (_sleepDetectorService.isRecording) {
         _sleepDetectorService.stopRecording();
       } else {
@@ -303,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       ),
                                     ),
 
-                                    // Rotating dots (when recording) - fixed initialization
+                                    // Rotating dots - only visible when recording
                                     if (_sleepDetectorService.isRecording)
                                       Transform.rotate(
                                         angle: _rotationAnimation.value,
@@ -313,8 +317,9 @@ class _HomeScreenState extends State<HomeScreen>
                                           child: CustomPaint(
                                             painter: DottedCirclePainter(
                                               dotColor: Colors.white,
-                                              dotSize: 3,
-                                              numberOfDots: 12,
+                                              dotSize: 3.5,
+                                              numberOfDots: 24, // Increased dots for more elegant animation
+                                              opacity: 1.0,
                                             ),
                                           ),
                                         ),
@@ -681,6 +686,9 @@ class _HomeScreenState extends State<HomeScreen>
                       },
                     ),
                     _buildNavItem(Icons.home_rounded, 'Home', true, () {}),
+                    _buildNavItem(Icons.trending_up_outlined, 'Trends', false, () {
+                      Navigator.pushNamed(context, '/trends');
+                    }),
                     _buildNavItem(Icons.history_outlined, 'History', false, () {
                       Navigator.pushNamed(context, '/history');
                     }),
@@ -742,40 +750,44 @@ class DottedCirclePainter extends CustomPainter {
   final Color dotColor;
   final double dotSize;
   final int numberOfDots;
+  final double opacity;
 
   DottedCirclePainter({
     required this.dotColor,
     required this.dotSize,
     required this.numberOfDots,
+    required this.opacity,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
-    final paint =
-        Paint()
-          ..color = dotColor
-          ..style = PaintingStyle.fill;
+    final paint = Paint()
+      ..style = PaintingStyle.fill;
 
+    // Draw more dots - don't skip as many
     for (int i = 0; i < numberOfDots; i++) {
-      // We only draw a subset of dots to create a partial circle
-      if (i % 3 == 0) {
+      // We now draw more dots - every other one instead of every third
+      if (i % 2 == 0) {
         final angle = 2 * math.pi * i / numberOfDots;
         final offset = Offset(
           center.dx + radius * math.cos(angle),
           center.dy + radius * math.sin(angle),
         );
 
-        // Vary dot opacity based on position
-        final opacity = 0.2 + (0.8 * (i / numberOfDots));
-        paint.color = dotColor.withOpacity(opacity);
+        // Vary dot opacity based on position for a more elegant look
+        final dotOpacity = opacity * (0.4 + (0.6 * (i / numberOfDots)));
+        paint.color = dotColor.withOpacity(dotOpacity);
 
-        canvas.drawCircle(offset, dotSize, paint);
+        // Draw slightly smaller dots
+        canvas.drawCircle(offset, dotSize * 0.8, paint);
       }
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+  bool shouldRepaint(covariant DottedCirclePainter oldDelegate) => 
+    oldDelegate.opacity != opacity || 
+    oldDelegate.dotSize != dotSize;
 }
