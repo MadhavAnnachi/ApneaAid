@@ -24,60 +24,15 @@ class _HomeScreenState extends State<HomeScreen>
   DateTime? _recordingStartedAt;
   Timer? _recordingTimer;
   String _recordingDuration = "00:00";
-
-  // Hourly data for the bar chart - simplified to make visualization clearer
-  final List<double> hourlyData = [
-    0.2,
-    0.3,
-    0.1,
-    0.2,
-    0.1,
-    0.3,
-    0.7,
-    0.2,
-    0.3,
-    0.5,
-    0.2,
-    0.3,
-    0.1,
-    0.2,
-    0.8,
-    0.3,
-    0.1,
-    0.2,
-    0.3,
-    0.1,
-    0.2,
-    0.1,
-    0.2,
-    0.1,
-  ];
-
-  // Mock data for the sleep quality graph - corrected to remove duplicates
-  final List<FlSpot> weeklyData = [
-    const FlSpot(0, 5), // Monday
-    const FlSpot(1, 6), // Tuesday
-    const FlSpot(2, 8), // Wednesday
-    const FlSpot(3, 6), // Thursday
-    const FlSpot(4, 6), // Friday
-    const FlSpot(5, 7), // Saturday
-    const FlSpot(6, 6), // Sunday
-  ];
-
-  // Day labels for the weekly chart
-  final List<String> weekDays = [
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
-  ];
+  
+  // Last sleep sessions data
+  List<SleepRecord> _recentRecords = [];
+  StreamSubscription? _recordsSubscription;
 
   @override
   void initState() {
     super.initState();
+    debugPrint("HomeScreen: initState called");
     // Fix: Initialize animation controller first
     _animationController = AnimationController(
       vsync: this,
@@ -98,11 +53,55 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Make sure the service is ready
     _sleepDetectorService.init();
+    
+    // Load recent records and set up subscription for updates
+    _setupRecordsHandling();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    debugPrint("HomeScreen: didChangeDependencies called");
+    // Refresh data when returning to this screen
+    _loadRecentRecords();
+  }
+  
+  void _setupRecordsHandling() {
+    // Immediately load whatever records are available
+    _loadRecentRecords();
+    
+    // Cancel any existing subscription
+    _recordsSubscription?.cancel();
+    
+    // Set up a subscription to track changes
+    _recordsSubscription = _sleepDetectorService.recordsStream.listen((records) {
+      if (mounted) {
+        debugPrint("HomeScreen: Received ${records.length} records from stream");
+        setState(() {
+          _recentRecords = records.cast<SleepRecord>().take(7).toList();
+        });
+      }
+    }, onError: (error) {
+      debugPrint("HomeScreen: Error receiving records: $error");
+    });
+    
+    // Force an immediate refresh from the service to ensure we're up to date
+    Future.microtask(() => _sleepDetectorService.refreshStreams());
+  }
+  
+  void _loadRecentRecords() {
+    // Get the most recent records for the visualizations
+    final records = globalSleepRecords;
+    setState(() {
+      _recentRecords = records.cast<SleepRecord>().take(7).toList();
+    });
+    debugPrint("HomeScreen: Loaded ${_recentRecords.length} records directly from global list");
   }
 
   @override
   void dispose() {
     _animationController.dispose();
+    _recordsSubscription?.cancel();
     _sleepDetectorService.dispose();
     _recordingTimer?.cancel();
     super.dispose();
@@ -126,6 +125,9 @@ class _HomeScreenState extends State<HomeScreen>
             duration: Duration(seconds: 2),
           ),
         );
+        
+        // Refresh the data
+        _loadRecentRecords();
         
         // Navigate to history screen after a short delay
         Future.delayed(const Duration(milliseconds: 500), () {
@@ -406,116 +408,14 @@ class _HomeScreenState extends State<HomeScreen>
 
                           const SizedBox(height: 40),
 
-                          // Hourly activity bars (improved visualization)
+                          // Apnea events trend chart
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 const Text(
-                                  'Hourly Apnea Events',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Container(
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.05),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Colors.white.withOpacity(0.1),
-                                      width: 1,
-                                    ),
-                                  ),
-                                  padding: const EdgeInsets.all(12),
-                                  child: Row(
-                                    children: List.generate(
-                                      hourlyData.length,
-                                      (index) => Expanded(
-                                        child: Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 1,
-                                          ),
-                                          child: Column(
-                                            children: [
-                                              Expanded(
-                                                child: Container(
-                                                  decoration: BoxDecoration(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          4,
-                                                        ),
-                                                  ),
-                                                  width: double.infinity,
-                                                  alignment:
-                                                      Alignment.bottomCenter,
-                                                  child: FractionallySizedBox(
-                                                    heightFactor:
-                                                        hourlyData[index],
-                                                    child: Container(
-                                                      decoration: BoxDecoration(
-                                                        color: _getBarColor(
-                                                          hourlyData[index],
-                                                        ),
-                                                        borderRadius:
-                                                            BorderRadius.circular(
-                                                              2,
-                                                            ),
-                                                        boxShadow: [
-                                                          BoxShadow(
-                                                            color: _getBarColor(
-                                                              hourlyData[index],
-                                                            ).withOpacity(0.6),
-                                                            blurRadius: 4,
-                                                            spreadRadius: 0,
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              // Show hour labels every 6 hours
-                                              if (index % 6 == 0)
-                                                Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        top: 4,
-                                                      ),
-                                                  child: Text(
-                                                    '${index}h',
-                                                    style: TextStyle(
-                                                      color: Colors.white
-                                                          .withOpacity(0.6),
-                                                      fontSize: 10,
-                                                    ),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          const SizedBox(height: 40),
-
-                          // Weekly graph (fixed day labels)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Weekly Sleep Quality',
+                                  'Apnea Events Trend',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 18,
@@ -534,158 +434,76 @@ class _HomeScreenState extends State<HomeScreen>
                                     ),
                                   ),
                                   padding: const EdgeInsets.all(16),
-                                  child: LineChart(
-                                    LineChartData(
-                                      gridData: FlGridData(
-                                        show: true,
-                                        drawVerticalLine: true,
-                                        horizontalInterval: 2,
-                                        verticalInterval: 1,
-                                        getDrawingHorizontalLine: (value) {
-                                          return const FlLine(
-                                            color: Colors.white10,
-                                            strokeWidth: 1,
-                                          );
-                                        },
-                                        getDrawingVerticalLine: (value) {
-                                          return const FlLine(
-                                            color: Colors.white10,
-                                            strokeWidth: 1,
-                                          );
-                                        },
-                                      ),
-                                      titlesData: FlTitlesData(
-                                        leftTitles: const AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: false,
-                                          ),
-                                        ),
-                                        bottomTitles: AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: true,
-                                            getTitlesWidget: (value, meta) {
-                                              const style = TextStyle(
-                                                color: Colors.white54,
-                                                fontSize: 11,
-                                              );
+                                  child: _buildApneaEventsChart(),
+                                ),
+                              ],
+                            ),
+                          ),
 
-                                              if (value.toInt() >= 0 &&
-                                                  value.toInt() <
-                                                      weekDays.length) {
-                                                return Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                        top: 8.0,
-                                                      ),
-                                                  child: Text(
-                                                    weekDays[value.toInt()],
-                                                    style: style,
-                                                  ),
-                                                );
-                                              }
-                                              return const Text(
-                                                '',
-                                                style: style,
-                                              );
-                                            },
-                                            reservedSize: 30,
-                                          ),
-                                        ),
-                                        rightTitles: const AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: false,
-                                          ),
-                                        ),
-                                        topTitles: const AxisTitles(
-                                          sideTitles: SideTitles(
-                                            showTitles: false,
-                                          ),
-                                        ),
-                                      ),
-                                      borderData: FlBorderData(show: false),
-                                      minX: 0,
-                                      maxX: 6,
-                                      minY: 0,
-                                      maxY: 10,
-                                      lineBarsData: [
-                                        LineChartBarData(
-                                          spots: weeklyData,
-                                          isCurved: true,
-                                          color: const Color(0xFF6A47BB),
-                                          barWidth: 3,
-                                          isStrokeCapRound: true,
-                                          dotData: FlDotData(
-                                            show: true,
-                                            getDotPainter: (
-                                              spot,
-                                              percent,
-                                              barData,
-                                              index,
-                                            ) {
-                                              Color dotColor = const Color(
-                                                0xFF6A47BB,
-                                              );
-                                              // Highlight the last dot (today)
-                                              if (index ==
-                                                  weeklyData.length - 1) {
-                                                dotColor = Colors.white;
-                                              }
-                                              return FlDotCirclePainter(
-                                                radius:
-                                                    index ==
-                                                            weeklyData.length -
-                                                                1
-                                                        ? 4
-                                                        : 3,
-                                                color: dotColor,
-                                                strokeWidth: 2,
-                                                strokeColor: const Color(
-                                                  0xFF6A47BB,
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                          belowBarData: BarAreaData(
-                                            show: true,
-                                            gradient: LinearGradient(
-                                              colors: [
-                                                const Color(
-                                                  0xFF6A47BB,
-                                                ).withOpacity(0.5),
-                                                const Color(
-                                                  0xFF6A47BB,
-                                                ).withOpacity(0.0),
-                                              ],
-                                              begin: Alignment.topCenter,
-                                              end: Alignment.bottomCenter,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                      lineTouchData: LineTouchData(
-                                        touchTooltipData: LineTouchTooltipData(
-                                          tooltipBgColor: const Color(
-                                            0xFF6A47BB,
-                                          ).withOpacity(0.8),
-                                          getTooltipItems: (touchedSpots) {
-                                            return touchedSpots.map((
-                                              touchedSpot,
-                                            ) {
-                                              return LineTooltipItem(
-                                                'Score: ${touchedSpot.y.toInt()}',
-                                                const TextStyle(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              );
-                                            }).toList();
-                                          },
-                                        ),
-                                      ),
-                                    ),
+                          const SizedBox(height: 30),
+
+                          // Sleep quality distribution
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Sleep Quality Distribution',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                                const SizedBox(height: 20),
+                                const SizedBox(height: 10),
+                                Container(
+                                  height: 180,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.1),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(16),
+                                  child: _buildSleepQualityDistribution(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 30),
+                          
+                          // Sleep duration trend
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Sleep Duration Trend',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Container(
+                                  height: 180,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.1),
+                                      width: 1,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(16),
+                                  child: _buildSleepDurationChart(),
+                                ),
                               ],
                             ),
                           ),
@@ -752,6 +570,464 @@ class _HomeScreenState extends State<HomeScreen>
       ),
     );
   }
+  
+  // Apnea events trend chart
+  Widget _buildApneaEventsChart() {
+    // If no records, show empty state
+    if (_recentRecords.isEmpty) {
+      return const Center(
+        child: Text(
+          'No sleep data available yet',
+          style: TextStyle(color: Colors.white60),
+        ),
+      );
+    }
+    
+    // Prepare data for the chart
+    final List<BarChartGroupData> barGroups = [];
+    final List<String> dates = [];
+    
+    // Sort the records by date (oldest to newest) for chronological display
+    final displayRecords = List<SleepRecord>.from(_recentRecords);
+    displayRecords.sort((a, b) {
+      // Simple string comparison should work for 'MMM d, yyyy' format
+      return a.date.compareTo(b.date);
+    });
+    
+    for (var i = 0; i < displayRecords.length; i++) {
+      final record = displayRecords[i];
+      
+      // Add date - just show the day part (e.g., "Apr 2" instead of "Apr 2, 2025")
+      final shortDate = record.date.split(',')[0];
+      dates.add(shortDate);
+      
+      // Add bar
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: record.irregularities.toDouble(),
+              color: _getColorForSeverity(record.severity),
+              width: 15,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(4),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    debugPrint("HomeScreen Chart: Displaying ${displayRecords.length} records in apnea events chart");
+    
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceAround,
+        maxY: _getMaxIrregularities() * 1.2,
+        barGroups: barGroups,
+        borderData: FlBorderData(show: false),
+        gridData: const FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: 10,
+          getDrawingHorizontalLine: _getGridLine,
+        ),
+        titlesData: FlTitlesData(
+          show: true,
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                if (value >= 0 && value < dates.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      dates[value.toInt()],
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 10,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox();
+              },
+              reservedSize: 30,
+            ),
+          ),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 30,
+              getTitlesWidget: _getLeftTitles,
+            ),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+        ),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            tooltipBgColor: const Color(0xFF6A47BB).withOpacity(0.8),
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              if (groupIndex >= 0 && groupIndex < displayRecords.length) {
+                final record = displayRecords[groupIndex];
+                return BarTooltipItem(
+                  '${record.date}\n${record.irregularities} events',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                );
+              }
+              return null;
+            },
+          ),
+        ),
+      ),
+      swapAnimationDuration: const Duration(milliseconds: 300),
+    );
+  }
+  
+  // Sleep quality distribution (pie chart)
+  Widget _buildSleepQualityDistribution() {
+    // If no records, show empty state
+    if (_recentRecords.isEmpty) {
+      return const Center(
+        child: Text(
+          'No sleep data available yet',
+          style: TextStyle(color: Colors.white60),
+        ),
+      );
+    }
+    
+    // Count different quality levels
+    int lowCount = 0;
+    int mediumCount = 0;
+    int highCount = 0;
+    
+    for (final record in _recentRecords) {
+      switch (record.severity.toLowerCase()) {
+        case 'low':
+          lowCount++;
+          break;
+        case 'medium':
+        case 'med':
+          mediumCount++;
+          break;
+        case 'high':
+          highCount++;
+          break;
+      }
+    }
+    
+    final totalRecords = lowCount + mediumCount + highCount;
+    
+    debugPrint("HomeScreen Chart: Sleep quality distribution - Low: $lowCount, Medium: $mediumCount, High: $highCount");
+    
+    return totalRecords == 0
+        ? const Center(
+            child: Text(
+              'No sleep data available yet',
+              style: TextStyle(color: Colors.white60),
+            ),
+          )
+        : Row(
+            children: [
+              // Pie chart
+              Expanded(
+                flex: 3,
+                child: PieChart(
+                  PieChartData(
+                    sections: [
+                      if (lowCount > 0)
+                        PieChartSectionData(
+                          value: lowCount.toDouble(),
+                          title: '${((lowCount / totalRecords) * 100).round()}%',
+                          color: AppTheme.lowRiskColor,
+                          radius: 60,
+                          titleStyle: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      if (mediumCount > 0)
+                        PieChartSectionData(
+                          value: mediumCount.toDouble(),
+                          title: '${((mediumCount / totalRecords) * 100).round()}%',
+                          color: AppTheme.mediumRiskColor,
+                          radius: 60,
+                          titleStyle: const TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      if (highCount > 0)
+                        PieChartSectionData(
+                          value: highCount.toDouble(),
+                          title: '${((highCount / totalRecords) * 100).round()}%',
+                          color: AppTheme.highRiskColor,
+                          radius: 60,
+                          titleStyle: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                    ],
+                    centerSpaceRadius: 0,
+                    sectionsSpace: 2,
+                    startDegreeOffset: 180,
+                  ),
+                ),
+              ),
+              
+              // Legend
+              Expanded(
+                flex: 2,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildLegendItem('Good', lowCount, AppTheme.lowRiskColor),
+                    const SizedBox(height: 12),
+                    _buildLegendItem('Fair', mediumCount, AppTheme.mediumRiskColor),
+                    const SizedBox(height: 12),
+                    _buildLegendItem('Poor', highCount, AppTheme.highRiskColor),
+                  ],
+                ),
+              ),
+            ],
+          );
+  }
+  
+  // Sleep duration chart
+  Widget _buildSleepDurationChart() {
+    // If no records, show empty state
+    if (_recentRecords.isEmpty) {
+      return const Center(
+        child: Text(
+          'No sleep data available yet',
+          style: TextStyle(color: Colors.white60),
+        ),
+      );
+    }
+    
+    // Sort the records by date (oldest to newest) for chronological display
+    final displayRecords = List<SleepRecord>.from(_recentRecords);
+    displayRecords.sort((a, b) {
+      return a.date.compareTo(b.date);
+    });
+    
+    // Prepare data for the chart
+    final List<FlSpot> spots = [];
+    final List<String> dates = [];
+    
+    for (var i = 0; i < displayRecords.length; i++) {
+      spots.add(FlSpot(i.toDouble(), displayRecords[i].duration));
+      // Add date - just show the day part
+      final shortDate = displayRecords[i].date.split(',')[0];
+      dates.add(shortDate);
+    }
+    
+    debugPrint("HomeScreen Chart: Displaying ${displayRecords.length} records in sleep duration chart");
+    
+    return LineChart(
+      LineChartData(
+        gridData: const FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          getDrawingHorizontalLine: _getGridLine,
+          horizontalInterval: 2,
+        ),
+        titlesData: FlTitlesData(
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: (value, meta) {
+                if (value.toInt() >= 0 && value.toInt() < dates.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: Text(
+                      dates[value.toInt()],
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 10,
+                      ),
+                    ),
+                  );
+                }
+                return const SizedBox();
+              },
+              reservedSize: 30,
+            ),
+          ),
+          leftTitles: const AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              getTitlesWidget: _getDurationTitles,
+              reservedSize: 30,
+            ),
+          ),
+          rightTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+          topTitles: const AxisTitles(
+            sideTitles: SideTitles(showTitles: false),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        minX: 0,
+        maxX: displayRecords.length - 1.0,
+        minY: 0,
+        maxY: 10,
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: AppTheme.primaryColor,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: FlDotData(
+              show: true,
+              getDotPainter: (spot, percent, barData, index) {
+                final severity = displayRecords[index].severity;
+                return FlDotCirclePainter(
+                  radius: 4,
+                  color: _getColorForSeverity(severity),
+                  strokeWidth: 2,
+                  strokeColor: Colors.white,
+                );
+              },
+            ),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.primaryColor.withOpacity(0.5),
+                  AppTheme.primaryColor.withOpacity(0.0),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+        ],
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            tooltipBgColor: const Color(0xFF6A47BB).withOpacity(0.8),
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final index = spot.x.toInt();
+                if (index >= 0 && index < displayRecords.length) {
+                  final record = displayRecords[index];
+                  return LineTooltipItem(
+                    '${record.date}\n${record.duration} hours',
+                    const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  );
+                }
+                return null;
+              }).toList();
+            },
+          ),
+        ),
+      ),
+    );
+  }
+  
+  // Helper methods
+  static Widget _getLeftTitles(double value, TitleMeta meta) {
+    if (value % 10 != 0) return const SizedBox();
+    
+    return SideTitleWidget(
+      axisSide: meta.axisSide,
+      child: Text(
+        value.toInt().toString(),
+        style: const TextStyle(
+          color: Colors.white54,
+          fontSize: 10,
+        ),
+      ),
+    );
+  }
+  
+  static Widget _getDurationTitles(double value, TitleMeta meta) {
+    if (value % 2 != 0) return const SizedBox();
+    
+    return SideTitleWidget(
+      axisSide: meta.axisSide,
+      child: Text(
+        '${value.toInt()}h',
+        style: const TextStyle(
+          color: Colors.white54,
+          fontSize: 10,
+        ),
+      ),
+    );
+  }
+  
+  static FlLine _getGridLine(double value) {
+    return FlLine(
+      color: Colors.white10,
+      strokeWidth: 1,
+    );
+  }
+  
+  Widget _buildLegendItem(String label, int count, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$label ($count)',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  Color _getColorForSeverity(String severity) {
+    switch (severity.toLowerCase()) {
+      case 'low':
+        return AppTheme.lowRiskColor;
+      case 'medium':
+      case 'med':
+        return AppTheme.mediumRiskColor;
+      case 'high':
+        return AppTheme.highRiskColor;
+      default:
+        return Colors.grey;
+    }
+  }
+  
+  double _getMaxIrregularities() {
+    if (_recentRecords.isEmpty) return 10;
+    
+    return _recentRecords
+        .map((r) => r.irregularities)
+        .reduce((max, value) => max > value ? max : value)
+        .toDouble();
+  }
 
   Widget _buildNavItem(
     IconData icon,
@@ -782,17 +1058,6 @@ class _HomeScreenState extends State<HomeScreen>
         ],
       ),
     );
-  }
-
-  // Get color based on value with enhanced colors
-  Color _getBarColor(double value) {
-    if (value < 0.3) {
-      return const Color(0xFF6A47BB); // Opal purple
-    } else if (value < 0.6) {
-      return const Color(0xFFFFD166); // Amber (unchanged)
-    } else {
-      return const Color(0xFFFF5677); // Pinkish-Red (unchanged)
-    }
   }
 }
 
