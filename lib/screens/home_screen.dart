@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../services/sleep_detector_service.dart';
 import '../models/sleep_record.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -18,6 +19,11 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
   late Animation<double> _rotationAnimation;
+  
+  // Add recording duration tracking
+  DateTime? _recordingStartedAt;
+  Timer? _recordingTimer;
+  String _recordingDuration = "00:00";
 
   // Hourly data for the bar chart - simplified to make visualization clearer
   final List<double> hourlyData = [
@@ -98,6 +104,7 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     _animationController.dispose();
     _sleepDetectorService.dispose();
+    _recordingTimer?.cancel();
     super.dispose();
   }
 
@@ -109,14 +116,40 @@ class _HomeScreenState extends State<HomeScreen>
     
       if (_sleepDetectorService.isRecording) {
         _sleepDetectorService.stopRecording();
+        _stopRecordingTimer();
       } else {
         _sleepDetectorService.startRecording();
+        _startRecordingTimer();
       }
       setState(() {}); // Refresh UI
     } catch (e) {
       // Handle any errors silently to prevent red screen
       debugPrint("Error toggling recording: $e");
     }
+  }
+  
+  void _startRecordingTimer() {
+    _recordingStartedAt = DateTime.now();
+    _recordingTimer?.cancel();
+    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      
+      final now = DateTime.now();
+      final difference = now.difference(_recordingStartedAt!);
+      
+      setState(() {
+        final minutes = difference.inMinutes.toString().padLeft(2, '0');
+        final seconds = (difference.inSeconds % 60).toString().padLeft(2, '0');
+        _recordingDuration = "$minutes:$seconds";
+      });
+    });
+  }
+  
+  void _stopRecordingTimer() {
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+    _recordingStartedAt = null;
+    _recordingDuration = "00:00";
   }
 
   @override
@@ -343,11 +376,15 @@ class _HomeScreenState extends State<HomeScreen>
                                   color: Colors.white,
                                 ),
                               ),
-                              const Text(
-                                'Irregularities Detected',
+                              Text(
+                                _sleepDetectorService.isRecording
+                                    ? 'Recording $_recordingDuration'
+                                    : 'Irregularities Detected',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  color: Colors.white70,
+                                  color: _sleepDetectorService.isRecording
+                                      ? Colors.redAccent
+                                      : Colors.white70,
                                 ),
                               ),
                             ],
