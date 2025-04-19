@@ -40,11 +40,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               decoration: BoxDecoration(
                 gradient: RadialGradient(
                   colors: [
-                    Colors.deepPurple.withOpacity(0.25),
-                    Colors.black.withOpacity(0.0),
+                    const Color(0xFF4A2B82).withOpacity(0.5),
+                    Colors.black.withOpacity(0.2),
                   ],
                   center: Alignment.topCenter,
-                  radius: 0.8,
+                  radius: 0.9,
                 ),
               ),
             ),
@@ -61,7 +61,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFF7C4DFF).withOpacity(0.15),
+                    const Color(0xFF6A47BB).withOpacity(0.35),
                     Colors.transparent,
                   ],
                   stops: const [0.2, 1.0],

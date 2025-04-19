@@ -129,11 +129,11 @@ class _HomeScreenState extends State<HomeScreen>
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
                     colors: [
-                      Colors.deepPurple.withOpacity(0.25),
-                      Colors.black.withOpacity(0.0),
+                      const Color(0xFF4A2B82).withOpacity(0.5), // Deeper, more vibrant purple matching Opal
+                      Colors.black.withOpacity(0.2),
                     ],
                     center: Alignment.topCenter,
-                    radius: 0.8,
+                    radius: 0.9, // Slightly larger radius
                   ),
                 ),
               ),
@@ -150,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen>
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      const Color(0xFF7C4DFF).withOpacity(0.2),
+                      const Color(0xFF6A47BB).withOpacity(0.35), // Enhanced glow color
                       Colors.transparent,
                     ],
                     stops: const [0.2, 1.0],
@@ -170,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen>
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
                     colors: [
-                      const Color(0xFF5E35B1).withOpacity(0.15),
+                      const Color(0xFF5E35B1).withOpacity(0.25), // Enhanced glow color
                       Colors.transparent,
                     ],
                     stops: const [0.2, 1.0],
@@ -272,21 +272,19 @@ class _HomeScreenState extends State<HomeScreen>
                                           begin: Alignment.topLeft,
                                           end: Alignment.bottomRight,
                                           colors: [
-                                            Color(0xFF7C4DFF), // Darker purple
-                                            Color(0xFF5E35B1), // Even darker purple for depth
+                                            Color(0xFF6A47BB), // More vibrant, Opal-like purple
+                                            Color(0xFF4A2B82), // Deeper purple for dimension
                                           ],
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: const Color(
-                                              0xFF7C4DFF,
-                                            ).withOpacity(0.5),
-                                            blurRadius: 25,
+                                            color: const Color(0xFF6A47BB).withOpacity(0.6),
+                                            blurRadius: 30,
                                             spreadRadius: 5,
                                           ),
                                         ],
                                         border: Border.all(
-                                          color: Colors.white.withOpacity(0.3),
+                                          color: Colors.white.withOpacity(0.4),
                                           width: 2,
                                         ),
                                       ),
@@ -557,7 +555,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         LineChartBarData(
                                           spots: weeklyData,
                                           isCurved: true,
-                                          color: const Color(0xFF7C4DFF),
+                                          color: const Color(0xFF6A47BB),
                                           barWidth: 3,
                                           isStrokeCapRound: true,
                                           dotData: FlDotData(
@@ -569,7 +567,7 @@ class _HomeScreenState extends State<HomeScreen>
                                               index,
                                             ) {
                                               Color dotColor = const Color(
-                                                0xFF7C4DFF,
+                                                0xFF6A47BB,
                                               );
                                               // Highlight the last dot (today)
                                               if (index ==
@@ -586,7 +584,7 @@ class _HomeScreenState extends State<HomeScreen>
                                                 color: dotColor,
                                                 strokeWidth: 2,
                                                 strokeColor: const Color(
-                                                  0xFF7C4DFF,
+                                                  0xFF6A47BB,
                                                 ),
                                               );
                                             },
@@ -596,10 +594,10 @@ class _HomeScreenState extends State<HomeScreen>
                                             gradient: LinearGradient(
                                               colors: [
                                                 const Color(
-                                                  0xFF7C4DFF,
-                                                ).withOpacity(0.4),
+                                                  0xFF6A47BB,
+                                                ).withOpacity(0.5),
                                                 const Color(
-                                                  0xFF7C4DFF,
+                                                  0xFF6A47BB,
                                                 ).withOpacity(0.0),
                                               ],
                                               begin: Alignment.topCenter,
@@ -611,7 +609,7 @@ class _HomeScreenState extends State<HomeScreen>
                                       lineTouchData: LineTouchData(
                                         touchTooltipData: LineTouchTooltipData(
                                           tooltipBgColor: const Color(
-                                            0xFF7C4DFF,
+                                            0xFF6A47BB,
                                           ).withOpacity(0.8),
                                           getTooltipItems: (touchedSpots) {
                                             return touchedSpots.map((
@@ -702,7 +700,7 @@ class _HomeScreenState extends State<HomeScreen>
     bool isActive,
     VoidCallback onTap,
   ) {
-    const Color activeColor = Color(0xFF7C4DFF); // Updated to darker purple
+    const Color activeColor = Color(0xFF6A47BB); // Updated to match Opal purple
 
     return GestureDetector(
       onTap: onTap,
@@ -730,7 +728,7 @@ class _HomeScreenState extends State<HomeScreen>
   // Get color based on value with enhanced colors
   Color _getBarColor(double value) {
     if (value < 0.3) {
-      return const Color(0xFF8667D8); // Darker Purple
+      return const Color(0xFF6A47BB); // Opal purple
     } else if (value < 0.6) {
       return const Color(0xFFFFD166); // Amber (unchanged)
     } else {

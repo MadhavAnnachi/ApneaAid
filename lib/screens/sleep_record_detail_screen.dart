@@ -25,11 +25,11 @@ class SleepRecordDetailScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: RadialGradient(
                   colors: [
-                    Colors.deepPurple.withOpacity(0.25),
-                    Colors.black.withOpacity(0.0),
+                    const Color(0xFF4A2B82).withOpacity(0.5), // Deeper, more vibrant purple
+                    Colors.black.withOpacity(0.2),
                   ],
                   center: Alignment.topCenter,
-                  radius: 0.8,
+                  radius: 0.9,
                 ),
               ),
             ),
@@ -46,7 +46,7 @@ class SleepRecordDetailScreen extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFF7C4DFF).withOpacity(0.15),
+                    const Color(0xFF6A47BB).withOpacity(0.35), // Enhanced glow color
                     Colors.transparent,
                   ],
                   stops: const [0.2, 1.0],
