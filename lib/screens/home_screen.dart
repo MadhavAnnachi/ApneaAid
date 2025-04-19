@@ -117,6 +117,20 @@ class _HomeScreenState extends State<HomeScreen>
       if (_sleepDetectorService.isRecording) {
         _sleepDetectorService.stopRecording();
         _stopRecordingTimer();
+        
+        // Show a success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Recording saved to history'),
+            backgroundColor: AppTheme.primaryColor,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        
+        // Navigate to history screen after a short delay
+        Future.delayed(const Duration(milliseconds: 500), () {
+          Navigator.pushNamed(context, '/history');
+        });
       } else {
         _sleepDetectorService.startRecording();
         _startRecordingTimer();

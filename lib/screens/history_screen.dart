@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import '../services/sleep_detector_service.dart';
 import '../widgets/sleep_record_card.dart';
 import '../models/sleep_record.dart';
 import '../theme/app_theme.dart';
+import 'package:flutter/foundation.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({Key? key}) : super(key: key);
@@ -11,20 +13,123 @@ class HistoryScreen extends StatefulWidget {
   State<HistoryScreen> createState() => _HistoryScreenState();
 }
 
-class _HistoryScreenState extends State<HistoryScreen> {
+class _HistoryScreenState extends State<HistoryScreen> with WidgetsBindingObserver {
   final SleepDetectorService _sleepDetectorService = SleepDetectorService();
+  bool _isLoading = true;
+  List<SleepRecord> _records = [];
+  String _errorMessage = '';
+  StreamSubscription? _recordsSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    debugPrint("🔍 History Screen: initState");
+    WidgetsBinding.instance.addObserver(this);
+    // Ensure service is initialized
+    _sleepDetectorService.init();
+    
+    // Manually force a refresh of all streams in the service
+    _sleepDetectorService.refreshStreams();
+    
+    // Load records directly on init to avoid waiting for stream
+    _loadRecords();
+  }
+  
+  @override
+  void dispose() {
+    debugPrint("🔍 History Screen: dispose");
+    WidgetsBinding.instance.removeObserver(this);
+    _recordsSubscription?.cancel();
+    super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh when coming back to this screen
+      debugPrint("🔍 History Screen: resumed, refreshing");
+      _loadRecords();
+    }
+  }
+  
+  // Called when the screen is displayed
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh data when returning to this screen
+    debugPrint("🔍 History Screen: didChangeDependencies, refreshing");
+    _loadRecords();
+  }
+  
+  void _loadRecords() {
+    try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = '';
+      });
+      
+      // Get initial records
+      final loadedRecords = _sleepDetectorService.getRecords();
+      
+      debugPrint("🔍 History Screen: Loaded ${loadedRecords.length} records directly");
+      
+      // If we have records already, update the UI immediately
+      setState(() {
+        _records = loadedRecords;
+        _isLoading = false;
+      });
+      
+      // Cancel existing subscription
+      _recordsSubscription?.cancel();
+      
+      // Listen to stream for updates
+      _recordsSubscription = _sleepDetectorService.recordsStream.listen((updatedRecords) {
+        if (mounted) {
+          debugPrint("🔄 History Screen: Stream updated with ${updatedRecords.length} records");
+          setState(() {
+            _records = updatedRecords;
+            _isLoading = false;
+          });
+        }
+      }, onError: (error) {
+        if (mounted) {
+          debugPrint("❌ History Screen: Stream error: $error");
+          setState(() {
+            _errorMessage = 'Error: $error';
+            _isLoading = false;
+          });
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        debugPrint("❌ History Screen: Error loading records: $e");
+        setState(() {
+          _errorMessage = 'Failed to load records: $e';
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text(
-          'Sleep History',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          'Sleep History (${_records.length})',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.black,
         elevation: 0,
+        actions: [
+          // Add a refresh button
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadRecords,
+            tooltip: 'Refresh records',
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -64,20 +169,107 @@ class _HistoryScreenState extends State<HistoryScreen> {
             ),
           ),
           
-          StreamBuilder<List<SleepRecord>>(
-            stream: _sleepDetectorService.recordsStream,
-            initialData: _sleepDetectorService.getRecords(),
-            builder: (context, snapshot) {
-              final records = snapshot.data ?? [];
-
-              return ListView.builder(
+          // Handle different states
+          if (_isLoading)
+            const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    color: AppTheme.primaryColor,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading sleep records...',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                ],
+              ),
+            )
+          else if (_errorMessage.isNotEmpty)
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: Colors.red,
+                    size: 48,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage,
+                    style: const TextStyle(color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadRecords,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                    ),
+                    child: const Text('Try Again'),
+                  ),
+                ],
+              ),
+            )
+          else if (_records.isEmpty)
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.nights_stay_outlined,
+                    size: 64,
+                    color: Colors.white.withOpacity(0.5),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No sleep records yet',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Start a recording session to track your sleep',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context); // Go back to home screen
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    icon: const Icon(Icons.play_arrow),
+                    label: const Text('Start Recording'),
+                  ),
+                ],
+              ),
+            )
+          else
+            RefreshIndicator(
+              onRefresh: () async {
+                debugPrint("🔄 History Screen: Pull-to-refresh triggered");
+                _loadRecords();
+              },
+              color: AppTheme.primaryColor,
+              child: ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: records.length,
-                itemBuilder:
-                    (context, index) => SleepRecordCard(record: records[index]),
-              );
-            },
-          ),
+                itemCount: _records.length,
+                itemBuilder: (context, index) => SleepRecordCard(
+                  record: _records[index],
+                  key: ValueKey(_records[index].id), // Use ID as key for better list updates
+                ),
+              ),
+            ),
         ],
       ),
     );

@@ -1,48 +1,104 @@
 import 'dart:async';
 import 'package:intl/intl.dart';
 import '../models/sleep_record.dart';
+import 'package:flutter/foundation.dart';
 
 class SleepDetectorService {
+  // Singleton instance
+  static final SleepDetectorService _instance = SleepDetectorService._internal();
+  
+  // Factory constructor to return the same instance
+  factory SleepDetectorService() {
+    return _instance;
+  }
+  
+  // Private constructor for singleton
+  SleepDetectorService._internal() {
+    debugPrint("🛠️ SleepDetectorService: private constructor called");
+    // Create streams immediately in the constructor
+    _irregularitiesController = StreamController<int>.broadcast();
+    _recordsController = StreamController<List<SleepRecord>>.broadcast();
+    
+    // Add initial mock data directly in constructor
+    _initMockData();
+  }
+  
+  void _initMockData() {
+    // Add mock data only if records is empty
+    if (_records.isEmpty) {
+      debugPrint("🛠️ SleepDetectorService: initializing mock data");
+      _records.addAll([
+        SleepRecord(
+          date: 'Apr 18, 2025',
+          duration: 8.0,
+          irregularities: 0,
+          severity: 'Low',
+          id: '1',
+        ),
+        SleepRecord(
+          date: 'Apr 17, 2025',
+          duration: 7.5,
+          irregularities: 12,
+          severity: 'Medium',
+          id: '2',
+        ),
+        SleepRecord(
+          date: 'Apr 16, 2025',
+          duration: 6.0,
+          irregularities: 28,
+          severity: 'High',
+          id: '3',
+        ),
+      ]);
+      
+      // Emit initial data
+      try {
+        _recordsController.add(List<SleepRecord>.from(_records));
+        debugPrint("🛠️ SleepDetectorService: ${_records.length} mock records added to stream");
+      } catch (e) {
+        debugPrint("🛠️ SleepDetectorService ERROR: Failed to add records to stream: $e");
+      }
+    }
+  }
+  
   bool _isRecording = false;
   int _irregularities = 0;
   final List<SleepRecord> _records = [];
   DateTime? _recordingStartTime;
+  bool _isInitialized = false;
   
-  // Controllers for streams
-  final _irregularitiesController = StreamController<int>.broadcast();
-  final _recordsController = StreamController<List<SleepRecord>>.broadcast();
-
-  // Mock data for initial load
-  SleepDetectorService() {
-    _records.addAll([
-      SleepRecord(
-        date: 'Apr 18, 2025',
-        duration: 8.0,
-        irregularities: 0,
-        severity: 'Low',
-        id: '',
-      ),
-      SleepRecord(
-        date: 'Apr 17, 2025',
-        duration: 7.5,
-        irregularities: 12,
-        severity: 'Medium',
-        id: '',
-      ),
-      SleepRecord(
-        date: 'Apr 16, 2025',
-        duration: 6.0,
-        irregularities: 28,
-        severity: 'High',
-        id: '',
-      ),
-    ]);
-  }
+  // Controllers for streams - late initialization
+  late final StreamController<int> _irregularitiesController;
+  late final StreamController<List<SleepRecord>> _recordsController;
 
   // Initialize service (can be used for permissions or setup)
   void init() {
-    // Initialize necessary components
-    // For MVP, we're just setting up streams
+    // Only initialize once
+    if (_isInitialized) return;
+    
+    _isInitialized = true;
+    
+    // Immediately emit initial values on streams to unblock any waiting StreamBuilders
+    Future.microtask(() {
+      try {
+        _recordsController.add(List<SleepRecord>.from(_records));
+        _irregularitiesController.add(_irregularities);
+        debugPrint("🔍 SleepDetectorService initialized with ${_records.length} records");
+      } catch (e) {
+        debugPrint("🛠️ SleepDetectorService ERROR during init: $e");
+      }
+    });
+  }
+
+  // Force a refresh of all streams - useful for debugging
+  void refreshStreams() {
+    debugPrint("🔄 SleepDetectorService: Manually refreshing streams");
+    try {
+      _recordsController.add(List<SleepRecord>.from(_records));
+      _irregularitiesController.add(_irregularities);
+    } catch (e) {
+      debugPrint("🛠️ SleepDetectorService ERROR during refresh: $e");
+    }
   }
 
   // Access streams
@@ -57,9 +113,11 @@ class SleepDetectorService {
     _irregularities = 0;
     _recordingStartTime = DateTime.now();
     _irregularitiesController.add(_irregularities);
+    
+    debugPrint("🔴 Recording started at ${_recordingStartTime!.toString()}");
 
     // Simulate irregularities detection with more frequent updates
-    Timer.periodic(const Duration(seconds: 2), (timer) {
+    Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!_isRecording) {
         timer.cancel();
         return;
@@ -69,10 +127,11 @@ class SleepDetectorService {
       // More realistic simulation with varying probabilities
       final random = DateTime.now().millisecondsSinceEpoch % 100;
       
-      // Approximately 15% chance of detecting an irregularity each check
-      if (random < 15) {
+      // For MVP DEMO: Increase likelihood of events to ensure we see some
+      // Approximately 25% chance of detecting an irregularity each check
+      if (random < 25) {
         // Sometimes detect multiple irregularities at once (simulating clustered events)
-        final eventCount = random < 3 ? 2 : 1; // 3% chance of detecting 2 events at once
+        final eventCount = random < 5 ? 2 : 1; // 5% chance of detecting 2 events at once
         _irregularities += eventCount;
         _irregularitiesController.add(_irregularities);
       }
@@ -107,17 +166,37 @@ class SleepDetectorService {
     // Generate a simple ID
     final id = DateTime.now().millisecondsSinceEpoch.toString();
 
-    // Create a new record
+    // Create a new record - ensure we have at least a few irregularities for demo purposes
+    final irregularitiesCount = _irregularities < 1 ? 3 + (id.hashCode % 10) : _irregularities;
+    
     final newRecord = SleepRecord(
       date: formattedDate,
       duration: double.parse(duration.toStringAsFixed(1)), // Round to 1 decimal place
-      irregularities: _irregularities,
-      severity: _getSeverity(_irregularities),
+      irregularities: irregularitiesCount,
+      severity: _getSeverity(irregularitiesCount),
       id: id,
     );
 
+    // Add to records list at the beginning (most recent first)
     _records.insert(0, newRecord);
-    _recordsController.add(_records);
+    
+    // Create a new list to ensure reference changes
+    final updatedRecords = List<SleepRecord>.from(_records);
+    
+    // Notify listeners about the updated records
+    try {
+      _recordsController.add(updatedRecords);
+      debugPrint("🛑 Recording stopped. New record added to stream (${updatedRecords.length} total)");
+    } catch (e) {
+      debugPrint("🛠️ ERROR adding record to stream: $e");
+    }
+    
+    // Debug log
+    debugPrint("   - Date: ${newRecord.date}");
+    debugPrint("   - Duration: ${newRecord.duration} hours");
+    debugPrint("   - Irregularities: ${newRecord.irregularities}");
+    debugPrint("   - Severity: ${newRecord.severity}");
+    debugPrint("   - ID: ${newRecord.id}");
     
     // Reset recording start time
     _recordingStartTime = null;
@@ -131,14 +210,22 @@ class SleepDetectorService {
   }
 
   // Get all records
-  List<SleepRecord> getRecords() => _records;
+  List<SleepRecord> getRecords() {
+    debugPrint("📋 SleepDetectorService.getRecords() called, returning ${_records.length} records");
+    return List<SleepRecord>.from(_records);
+  }
 
   // Check if recording
   bool get isRecording => _isRecording;
 
-  // Dispose resources
+  // Dispose resources (should only be called when app is closing)
   void dispose() {
-    _irregularitiesController.close();
-    _recordsController.close();
+    debugPrint("🚮 SleepDetectorService: dispose called");
+    if (!_irregularitiesController.isClosed) {
+      _irregularitiesController.close();
+    }
+    if (!_recordsController.isClosed) {
+      _recordsController.close();
+    }
   }
 }
