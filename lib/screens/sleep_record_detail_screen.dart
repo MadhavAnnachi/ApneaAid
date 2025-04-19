@@ -17,20 +17,60 @@ class SleepRecordDetailScreen extends StatelessWidget {
         backgroundColor: AppTheme.backgroundColor,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSummaryCard(),
-            const SizedBox(height: 24),
-            _buildSeverityInfo(),
-            const SizedBox(height: 24),
-            _buildSymptomsInfo(),
-            const SizedBox(height: 24),
-            _buildRecommendations(),
-          ],
-        ),
+      body: Stack(
+        children: [
+          // Add background gradient effect
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    Colors.deepPurple.withOpacity(0.25),
+                    Colors.black.withOpacity(0.0),
+                  ],
+                  center: Alignment.topCenter,
+                  radius: 0.8,
+                ),
+              ),
+            ),
+          ),
+          
+          // Add subtle side glow
+          Positioned(
+            top: 100,
+            right: -120,
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFF7C4DFF).withOpacity(0.15),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.2, 1.0],
+                ),
+              ),
+            ),
+          ),
+          
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSummaryCard(),
+                const SizedBox(height: 24),
+                _buildSeverityInfo(),
+                const SizedBox(height: 24),
+                _buildSymptomsInfo(),
+                const SizedBox(height: 24),
+                _buildRecommendations(),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

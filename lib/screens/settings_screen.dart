@@ -25,41 +25,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text(
+          'Settings',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.black,
         elevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16.0),
+      body: Stack(
         children: [
-          _buildHeader('Recording Settings'),
-          _buildSwitchTile(
-            'Auto Recording',
-            'Start recording automatically at bedtime',
-            _autoRecording,
-            (value) => setState(() => _autoRecording = value),
-          ),
-          _buildDropdownTile(),
-          _buildHeader('Detection Settings'),
-          _buildSliderTile(),
-          _buildHeader('Notifications'),
-          _buildSwitchTile(
-            'High Risk Alerts',
-            'Get notified for high risk results',
-            _notifyHighRisk,
-            (value) => setState(() => _notifyHighRisk = value),
-          ),
-          _buildHeader('App Info'),
-          ListTile(
-            title: const Text(
-              'About APNEA-AID',
-              style: TextStyle(color: Colors.white),
+          // Background gradient glow effect
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    Colors.deepPurple.withOpacity(0.25),
+                    Colors.black.withOpacity(0.0),
+                  ],
+                  center: Alignment.topCenter,
+                  radius: 0.8,
+                ),
+              ),
             ),
-            subtitle: const Text(
-              'Version 1.0.0',
-              style: TextStyle(color: Colors.white70),
+          ),
+          
+          // Add subtle glow on the right side
+          Positioned(
+            top: 100,
+            right: -100,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFF7C4DFF).withOpacity(0.15),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.2, 1.0],
+                ),
+              ),
             ),
-            onTap: _showSimpleAboutDialog,
+          ),
+          
+          ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              _buildHeader('Recording Settings'),
+              _buildSwitchTile(
+                'Auto Recording',
+                'Start recording automatically at bedtime',
+                _autoRecording,
+                (value) => setState(() => _autoRecording = value),
+              ),
+              _buildDropdownTile(),
+              _buildHeader('Detection Settings'),
+              _buildSliderTile(),
+              _buildHeader('Notifications'),
+              _buildSwitchTile(
+                'High Risk Alerts',
+                'Get notified for high risk results',
+                _notifyHighRisk,
+                (value) => setState(() => _notifyHighRisk = value),
+              ),
+              _buildHeader('App Info'),
+              ListTile(
+                title: const Text(
+                  'About APNEA-AID',
+                  style: TextStyle(color: Colors.white),
+                ),
+                subtitle: const Text(
+                  'Version 1.0.0',
+                  style: TextStyle(color: Colors.white70),
+                ),
+                onTap: _showSimpleAboutDialog,
+              ),
+            ],
           ),
         ],
       ),

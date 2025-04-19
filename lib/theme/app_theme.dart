@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFFA36FF6);
+  static const Color primaryColor = Color(0xFF7C4DFF);
   static const Color backgroundColor = Colors.black;
   static const Color cardColor = Color(0xFF1E1E2D);
   static const Color highRiskColor = Color(0xFFFF5D8F);
-  static const Color mediumRiskColor = Color(0xFFF4F4A9);
-  static const Color lowRiskColor = Color(0xFF4FECB8);
+  static const Color mediumRiskColor = Color(0xFFFFD166);
+  static const Color lowRiskColor = Color(0xFF8667D8);
   static const Color textColor = Colors.white;
 
   static ThemeData get theme => ThemeData(
