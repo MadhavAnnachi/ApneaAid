@@ -213,7 +213,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: Text(
+                child: const Text(
                   'Close',
                   style: TextStyle(color: AppTheme.primaryColor),
                 ),

@@ -4,7 +4,7 @@
             "outputFile": "com.example.respireguard.app-mergeDebugResources-39:/values-lv/values-lv.xml",
             "map": [
                 {
-                    "source": "C:\\Users\\ramki\\.gradle\\caches\\8.10.2\\transforms\\3a4dcd3e8c92efa77cfa193b658940d9\\transformed\\appcompat-1.1.0\\res\\values-lv\\values-lv.xml",
+                    "source": "C:\\Users\\Tarun Jain\\.gradle\\caches\\8.10.2\\transforms\\3a4dcd3e8c92efa77cfa193b658940d9\\transformed\\appcompat-1.1.0\\res\\values-lv\\values-lv.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -21,24 +21,7 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\ramki\\.gradle\\caches\\8.10.2\\transforms\\0098a6e93522fecc805d8900172003dc\\transformed\\preference-1.2.1\\res\\values-lv\\values-lv.xml",
-                    "from": {
-                        "startLines": "2,3,4,5,6,7,8",
-                        "startColumns": "4,4,4,4,4,4,4",
-                        "startOffsets": "105,174,272,352,498,667,752",
-                        "endColumns": "68,97,79,145,168,84,81",
-                        "endOffsets": "169,267,347,493,662,747,829"
-                    },
-                    "to": {
-                        "startLines": "36,37,38,39,42,43,44",
-                        "startColumns": "4,4,4,4,4,4,4",
-                        "startOffsets": "3720,3789,3887,3967,4296,4465,4550",
-                        "endColumns": "68,97,79,145,168,84,81",
-                        "endOffsets": "3784,3882,3962,4108,4460,4545,4627"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\ramki\\.gradle\\caches\\8.10.2\\transforms\\8cf478dec41eed746328fa8046755ba2\\transformed\\core-1.13.1\\res\\values-lv\\values-lv.xml",
+                    "source": "C:\\Users\\Tarun Jain\\.gradle\\caches\\8.10.2\\transforms\\8cf478dec41eed746328fa8046755ba2\\transformed\\core-1.13.1\\res\\values-lv\\values-lv.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",
@@ -52,6 +35,23 @@
                         "startOffsets": "2989,3087,3189,3289,3390,3497,3605,4195",
                         "endColumns": "97,101,99,100,106,107,114,100",
                         "endOffsets": "3082,3184,3284,3385,3492,3600,3715,4291"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\Tarun Jain\\.gradle\\caches\\8.10.2\\transforms\\0098a6e93522fecc805d8900172003dc\\transformed\\preference-1.2.1\\res\\values-lv\\values-lv.xml",
+                    "from": {
+                        "startLines": "2,3,4,5,6,7,8",
+                        "startColumns": "4,4,4,4,4,4,4",
+                        "startOffsets": "105,174,272,352,498,667,752",
+                        "endColumns": "68,97,79,145,168,84,81",
+                        "endOffsets": "169,267,347,493,662,747,829"
+                    },
+                    "to": {
+                        "startLines": "36,37,38,39,42,43,44",
+                        "startColumns": "4,4,4,4,4,4,4",
+                        "startOffsets": "3720,3789,3887,3967,4296,4465,4550",
+                        "endColumns": "68,97,79,145,168,84,81",
+                        "endOffsets": "3784,3882,3962,4108,4460,4545,4627"
                     }
                 }
             ]

@@ -49,13 +49,13 @@ class _HomeScreenState extends State<HomeScreen>
 
   // Mock data for the sleep quality graph - corrected to remove duplicates
   final List<FlSpot> weeklyData = [
-    FlSpot(0, 5), // Monday
-    FlSpot(1, 6), // Tuesday
-    FlSpot(2, 8), // Wednesday
-    FlSpot(3, 6), // Thursday
-    FlSpot(4, 6), // Friday
-    FlSpot(5, 7), // Saturday
-    FlSpot(6, 6), // Sunday
+    const FlSpot(0, 5), // Monday
+    const FlSpot(1, 6), // Tuesday
+    const FlSpot(2, 8), // Wednesday
+    const FlSpot(3, 6), // Thursday
+    const FlSpot(4, 6), // Friday
+    const FlSpot(5, 7), // Saturday
+    const FlSpot(6, 6), // Sunday
   ];
 
   // Day labels for the weekly chart
@@ -448,20 +448,20 @@ class _HomeScreenState extends State<HomeScreen>
                                         horizontalInterval: 2,
                                         verticalInterval: 1,
                                         getDrawingHorizontalLine: (value) {
-                                          return FlLine(
+                                          return const FlLine(
                                             color: Colors.white10,
                                             strokeWidth: 1,
                                           );
                                         },
                                         getDrawingVerticalLine: (value) {
-                                          return FlLine(
+                                          return const FlLine(
                                             color: Colors.white10,
                                             strokeWidth: 1,
                                           );
                                         },
                                       ),
                                       titlesData: FlTitlesData(
-                                        leftTitles: AxisTitles(
+                                        leftTitles: const AxisTitles(
                                           sideTitles: SideTitles(
                                             showTitles: false,
                                           ),
@@ -497,12 +497,12 @@ class _HomeScreenState extends State<HomeScreen>
                                             reservedSize: 30,
                                           ),
                                         ),
-                                        rightTitles: AxisTitles(
+                                        rightTitles: const AxisTitles(
                                           sideTitles: SideTitles(
                                             showTitles: false,
                                           ),
                                         ),
-                                        topTitles: AxisTitles(
+                                        topTitles: const AxisTitles(
                                           sideTitles: SideTitles(
                                             showTitles: false,
                                           ),
@@ -662,7 +662,7 @@ class _HomeScreenState extends State<HomeScreen>
     bool isActive,
     VoidCallback onTap,
   ) {
-    final Color activeColor = const Color(0xFF4AEDC4);
+    const Color activeColor = Color(0xFF4AEDC4);
 
     return GestureDetector(
       onTap: onTap,
