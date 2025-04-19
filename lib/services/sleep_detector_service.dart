@@ -6,6 +6,53 @@ import 'package:flutter/foundation.dart';
 // Static variable to hold all records across app for direct access
 List<SleepRecord> globalSleepRecords = [];
 
+// Permanent hardcoded preset records that are always available
+final List<SleepRecord> presetRecords = [
+  // Mixed severity examples with more natural distribution
+  SleepRecord(
+    date: 'Apr 2, 2025',
+    duration: 7.3,
+    irregularities: 5,
+    severity: 'Medium',
+    id: 'preset-1',
+  ),
+  SleepRecord(
+    date: 'Apr 5, 2025',
+    duration: 5.1,
+    irregularities: 25,
+    severity: 'High',
+    id: 'preset-2',
+  ),
+  SleepRecord(
+    date: 'Apr 7, 2025',
+    duration: 8.2,
+    irregularities: 2,
+    severity: 'Low',
+    id: 'preset-3',
+  ),
+  SleepRecord(
+    date: 'Apr 9, 2025',
+    duration: 6.7,
+    irregularities: 18,
+    severity: 'Medium',
+    id: 'preset-4',
+  ),
+  SleepRecord(
+    date: 'Apr 11, 2025',
+    duration: 7.9,
+    irregularities: 3,
+    severity: 'Low',
+    id: 'preset-5',
+  ),
+  SleepRecord(
+    date: 'Apr 14, 2025',
+    duration: 4.5,
+    irregularities: 31,
+    severity: 'High',
+    id: 'preset-6',
+  ),
+];
+
 class SleepDetectorService {
   // Singleton instance
   static final SleepDetectorService _instance = SleepDetectorService._internal();
@@ -22,47 +69,24 @@ class SleepDetectorService {
     _irregularitiesController = StreamController<int>.broadcast();
     _recordsController = StreamController<List<SleepRecord>>.broadcast();
     
-    // Initialize records if not already set
-    if (globalSleepRecords.isEmpty) {
-      _initMockData();
-    }
+    // Initialize with preset records regardless of whether records is empty
+    _initPresetRecords();
   }
   
-  void _initMockData() {
-    // Add mock data only if records is empty
-    if (globalSleepRecords.isEmpty) {
-      debugPrint("🛠️ SleepDetectorService: initializing mock data");
-      globalSleepRecords.addAll([
-        SleepRecord(
-          date: 'Apr 18, 2025',
-          duration: 8.0,
-          irregularities: 0,
-          severity: 'Low',
-          id: '1',
-        ),
-        SleepRecord(
-          date: 'Apr 17, 2025',
-          duration: 7.5,
-          irregularities: 12,
-          severity: 'Medium',
-          id: '2',
-        ),
-        SleepRecord(
-          date: 'Apr 16, 2025',
-          duration: 6.0,
-          irregularities: 28,
-          severity: 'High',
-          id: '3',
-        ),
-      ]);
-      
-      // Emit initial data
-      try {
-        _recordsController.add(List<SleepRecord>.from(globalSleepRecords));
-        debugPrint("🛠️ SleepDetectorService: ${globalSleepRecords.length} mock records added to stream");
-      } catch (e) {
-        debugPrint("🛠️ SleepDetectorService ERROR: Failed to add records to stream: $e");
-      }
+  void _initPresetRecords() {
+    // Clear existing records to prevent duplicates when app restarts
+    globalSleepRecords.clear();
+    
+    // Add preset records that are always available
+    globalSleepRecords.addAll(presetRecords);
+    
+    debugPrint("🛠️ SleepDetectorService: ${globalSleepRecords.length} preset records loaded");
+    
+    // Emit initial data
+    try {
+      _recordsController.add(List<SleepRecord>.from(globalSleepRecords));
+    } catch (e) {
+      debugPrint("🛠️ SleepDetectorService ERROR: Failed to add records to stream: $e");
     }
   }
   
@@ -221,6 +245,12 @@ class SleepDetectorService {
 
   // Check if recording
   bool get isRecording => _isRecording;
+
+  // Reset to only preset records (useful for demos)
+  void resetToPresetRecords() {
+    debugPrint("🔄 SleepDetectorService: Resetting to preset records only");
+    _initPresetRecords();
+  }
 
   // Dispose resources (should only be called when app is closing)
   void dispose() {
