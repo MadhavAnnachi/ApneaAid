@@ -1035,7 +1035,16 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
           
           final record = records[index];
           final dateParts = record.date.split(', ')[0].split(' ');
-          final label = isWeekly ? dateParts[0].substring(0, 3) : dateParts[0];
+          
+          // Change this to include both month and day for more meaningful labels
+          final String label;
+          if (isWeekly) {
+            // For weekly view: "Apr 2" format
+            label = dateParts.length > 1 ? "${dateParts[0]} ${dateParts[1]}" : dateParts[0];
+          } else {
+            // For monthly view: "2" (just day) to save space, or full "Apr 2" if space permits
+            label = dateParts.length > 1 ? dateParts[1] : dateParts[0];
+          }
           
           return Padding(
             padding: const EdgeInsets.only(top: 8),
@@ -2183,7 +2192,7 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
             },
           ),
           titlesData: FlTitlesData(
-            bottomTitles: _getBottomTitles(records, isWeekly),
+            bottomTitles: _getBottomTitles(records, isWeekly), // Use the improved labels
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
@@ -2339,7 +2348,7 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
             },
           ),
           titlesData: FlTitlesData(
-            bottomTitles: _getBottomTitles(records, isWeekly),
+            bottomTitles: _getBottomTitles(records, isWeekly), // Use the improved labels
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,

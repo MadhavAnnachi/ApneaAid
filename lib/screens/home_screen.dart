@@ -563,8 +563,9 @@ class _HomeScreenState extends State<HomeScreen>
     for (var i = 0; i < displayRecords.length; i++) {
       final record = displayRecords[i];
       
-      // Add date - just show the day part (e.g., "Apr 2" instead of "Apr 2, 2025")
-      final shortDate = record.date.split(',')[0];
+      // Add date - show "Month Day" format instead of just month
+      final dateParts = record.date.split(',')[0].split(' ');
+      final shortDate = dateParts.length > 1 ? "${dateParts[0]} ${dateParts[1]}" : dateParts[0];
       dates.add(shortDate);
       
       // Add bar
@@ -684,8 +685,10 @@ class _HomeScreenState extends State<HomeScreen>
     
     for (var i = 0; i < displayRecords.length; i++) {
       spots.add(FlSpot(i.toDouble(), displayRecords[i].duration));
-      // Add date - just show the day part
-      final shortDate = displayRecords[i].date.split(',')[0];
+      
+      // Add date with "Month Day" format instead of just month
+      final dateParts = displayRecords[i].date.split(',')[0].split(' ');
+      final shortDate = dateParts.length > 1 ? "${dateParts[0]} ${dateParts[1]}" : dateParts[0];
       dates.add(shortDate);
     }
     
