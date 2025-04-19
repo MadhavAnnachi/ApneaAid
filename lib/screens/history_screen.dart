@@ -15,8 +15,7 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> with WidgetsBindingObserver {
   final SleepDetectorService _sleepDetectorService = SleepDetectorService();
-  bool _isLoading = true;
-  List<SleepRecord> _records = [];
+  bool _isLoading = false;
   String _errorMessage = '';
   StreamSubscription? _recordsSubscription;
 
@@ -25,14 +24,15 @@ class _HistoryScreenState extends State<HistoryScreen> with WidgetsBindingObserv
     super.initState();
     debugPrint("🔍 History Screen: initState");
     WidgetsBinding.instance.addObserver(this);
+    
     // Ensure service is initialized
     _sleepDetectorService.init();
     
     // Manually force a refresh of all streams in the service
     _sleepDetectorService.refreshStreams();
     
-    // Load records directly on init to avoid waiting for stream
-    _loadRecords();
+    // Listen for updates
+    _setupStreamListener();
   }
   
   @override
@@ -48,7 +48,7 @@ class _HistoryScreenState extends State<HistoryScreen> with WidgetsBindingObserv
     if (state == AppLifecycleState.resumed) {
       // Refresh when coming back to this screen
       debugPrint("🔍 History Screen: resumed, refreshing");
-      _loadRecords();
+      setState(() {}); // Just refresh the UI
     }
   }
   
@@ -57,67 +57,40 @@ class _HistoryScreenState extends State<HistoryScreen> with WidgetsBindingObserv
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Refresh data when returning to this screen
-    debugPrint("🔍 History Screen: didChangeDependencies, refreshing");
-    _loadRecords();
+    debugPrint("🔍 History Screen: didChangeDependencies called");
+    setState(() {}); // Just refresh the UI
   }
   
-  void _loadRecords() {
-    try {
-      setState(() {
-        _isLoading = true;
-        _errorMessage = '';
-      });
-      
-      // Get initial records
-      final loadedRecords = _sleepDetectorService.getRecords();
-      
-      debugPrint("🔍 History Screen: Loaded ${loadedRecords.length} records directly");
-      
-      // If we have records already, update the UI immediately
-      setState(() {
-        _records = loadedRecords;
-        _isLoading = false;
-      });
-      
-      // Cancel existing subscription
-      _recordsSubscription?.cancel();
-      
-      // Listen to stream for updates
-      _recordsSubscription = _sleepDetectorService.recordsStream.listen((updatedRecords) {
-        if (mounted) {
-          debugPrint("🔄 History Screen: Stream updated with ${updatedRecords.length} records");
-          setState(() {
-            _records = updatedRecords;
-            _isLoading = false;
-          });
-        }
-      }, onError: (error) {
-        if (mounted) {
-          debugPrint("❌ History Screen: Stream error: $error");
-          setState(() {
-            _errorMessage = 'Error: $error';
-            _isLoading = false;
-          });
-        }
-      });
-    } catch (e) {
+  void _setupStreamListener() {
+    // Cancel existing subscription
+    _recordsSubscription?.cancel();
+    
+    // Listen to stream for updates
+    _recordsSubscription = _sleepDetectorService.recordsStream.listen((updatedRecords) {
       if (mounted) {
-        debugPrint("❌ History Screen: Error loading records: $e");
+        debugPrint("🔄 History Screen: Stream updated with ${updatedRecords.length} records");
+        setState(() {});
+      }
+    }, onError: (error) {
+      if (mounted) {
+        debugPrint("❌ History Screen: Stream error: $error");
         setState(() {
-          _errorMessage = 'Failed to load records: $e';
-          _isLoading = false;
+          _errorMessage = 'Error: $error';
         });
       }
-    }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    // Get records directly from global variable
+    final records = List<SleepRecord>.from(globalSleepRecords);
+    
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         title: Text(
-          'Sleep History (${_records.length})',
+          'Sleep History (${records.length})',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.black,
@@ -126,7 +99,10 @@ class _HistoryScreenState extends State<HistoryScreen> with WidgetsBindingObserv
           // Add a refresh button
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _loadRecords,
+            onPressed: () {
+              _sleepDetectorService.refreshStreams();
+              setState(() {});
+            },
             tooltip: 'Refresh records',
           ),
         ],
@@ -204,7 +180,12 @@ class _HistoryScreenState extends State<HistoryScreen> with WidgetsBindingObserv
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: _loadRecords,
+                    onPressed: () {
+                      _sleepDetectorService.refreshStreams();
+                      setState(() {
+                        _errorMessage = '';
+                      });
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                     ),
@@ -213,7 +194,7 @@ class _HistoryScreenState extends State<HistoryScreen> with WidgetsBindingObserv
                 ],
               ),
             )
-          else if (_records.isEmpty)
+          else if (records.isEmpty)
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -258,15 +239,16 @@ class _HistoryScreenState extends State<HistoryScreen> with WidgetsBindingObserv
             RefreshIndicator(
               onRefresh: () async {
                 debugPrint("🔄 History Screen: Pull-to-refresh triggered");
-                _loadRecords();
+                _sleepDetectorService.refreshStreams();
+                setState(() {});
               },
               color: AppTheme.primaryColor,
               child: ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: _records.length,
+                itemCount: records.length,
                 itemBuilder: (context, index) => SleepRecordCard(
-                  record: _records[index],
-                  key: ValueKey(_records[index].id), // Use ID as key for better list updates
+                  record: records[index],
+                  key: ValueKey(records[index].id), // Use ID as key for better list updates
                 ),
               ),
             ),

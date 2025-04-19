@@ -3,6 +3,9 @@ import 'package:intl/intl.dart';
 import '../models/sleep_record.dart';
 import 'package:flutter/foundation.dart';
 
+// Static variable to hold all records across app for direct access
+List<SleepRecord> globalSleepRecords = [];
+
 class SleepDetectorService {
   // Singleton instance
   static final SleepDetectorService _instance = SleepDetectorService._internal();
@@ -19,15 +22,17 @@ class SleepDetectorService {
     _irregularitiesController = StreamController<int>.broadcast();
     _recordsController = StreamController<List<SleepRecord>>.broadcast();
     
-    // Add initial mock data directly in constructor
-    _initMockData();
+    // Initialize records if not already set
+    if (globalSleepRecords.isEmpty) {
+      _initMockData();
+    }
   }
   
   void _initMockData() {
     // Add mock data only if records is empty
-    if (_records.isEmpty) {
+    if (globalSleepRecords.isEmpty) {
       debugPrint("🛠️ SleepDetectorService: initializing mock data");
-      _records.addAll([
+      globalSleepRecords.addAll([
         SleepRecord(
           date: 'Apr 18, 2025',
           duration: 8.0,
@@ -53,8 +58,8 @@ class SleepDetectorService {
       
       // Emit initial data
       try {
-        _recordsController.add(List<SleepRecord>.from(_records));
-        debugPrint("🛠️ SleepDetectorService: ${_records.length} mock records added to stream");
+        _recordsController.add(List<SleepRecord>.from(globalSleepRecords));
+        debugPrint("🛠️ SleepDetectorService: ${globalSleepRecords.length} mock records added to stream");
       } catch (e) {
         debugPrint("🛠️ SleepDetectorService ERROR: Failed to add records to stream: $e");
       }
@@ -63,7 +68,6 @@ class SleepDetectorService {
   
   bool _isRecording = false;
   int _irregularities = 0;
-  final List<SleepRecord> _records = [];
   DateTime? _recordingStartTime;
   bool _isInitialized = false;
   
@@ -81,9 +85,9 @@ class SleepDetectorService {
     // Immediately emit initial values on streams to unblock any waiting StreamBuilders
     Future.microtask(() {
       try {
-        _recordsController.add(List<SleepRecord>.from(_records));
+        _recordsController.add(List<SleepRecord>.from(globalSleepRecords));
         _irregularitiesController.add(_irregularities);
-        debugPrint("🔍 SleepDetectorService initialized with ${_records.length} records");
+        debugPrint("🔍 SleepDetectorService initialized with ${globalSleepRecords.length} records");
       } catch (e) {
         debugPrint("🛠️ SleepDetectorService ERROR during init: $e");
       }
@@ -94,7 +98,7 @@ class SleepDetectorService {
   void refreshStreams() {
     debugPrint("🔄 SleepDetectorService: Manually refreshing streams");
     try {
-      _recordsController.add(List<SleepRecord>.from(_records));
+      _recordsController.add(List<SleepRecord>.from(globalSleepRecords));
       _irregularitiesController.add(_irregularities);
     } catch (e) {
       debugPrint("🛠️ SleepDetectorService ERROR during refresh: $e");
@@ -178,10 +182,10 @@ class SleepDetectorService {
     );
 
     // Add to records list at the beginning (most recent first)
-    _records.insert(0, newRecord);
+    globalSleepRecords.insert(0, newRecord);
     
     // Create a new list to ensure reference changes
-    final updatedRecords = List<SleepRecord>.from(_records);
+    final updatedRecords = List<SleepRecord>.from(globalSleepRecords);
     
     // Notify listeners about the updated records
     try {
@@ -211,8 +215,8 @@ class SleepDetectorService {
 
   // Get all records
   List<SleepRecord> getRecords() {
-    debugPrint("📋 SleepDetectorService.getRecords() called, returning ${_records.length} records");
-    return List<SleepRecord>.from(_records);
+    debugPrint("📋 SleepDetectorService.getRecords() called, returning ${globalSleepRecords.length} records");
+    return List<SleepRecord>.from(globalSleepRecords);
   }
 
   // Check if recording
