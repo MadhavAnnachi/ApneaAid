@@ -25,7 +25,7 @@ class _HomeScreenState extends State<HomeScreen>
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
   late Animation<double> _rotationAnimation;
-  
+
   // Add recording duration tracking
   DateTime? _recordingStartedAt;
   Timer? _recordingTimer;
@@ -65,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Start the animation
     _animationController.repeat();
-    
+
     // Load recent records and set up subscription for updates
     _setupRecordsHandling();
     
@@ -357,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen>
                             child: Container(
                               width: 40,
                               height: 40,
-                              decoration: BoxDecoration(
+                          decoration: BoxDecoration(
                                 color: AppTheme.primaryColor,
                                 shape: BoxShape.circle,
                                 boxShadow: [
@@ -532,15 +532,15 @@ class _HomeScreenState extends State<HomeScreen>
                               children: [
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
+                              children: [
+                                const Text(
                                       'Apnea Events Trend',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                                     Material(
                                       color: Colors.transparent,
                                       child: InkWell(
@@ -568,12 +568,12 @@ class _HomeScreenState extends State<HomeScreen>
                                                 Icons.arrow_forward_ios,
                                                 color: AppTheme.primaryColor,
                                                 size: 10,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
                                   ],
                                 ),
                                 const SizedBox(height: 10),
@@ -595,7 +595,7 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
 
                           const SizedBox(height: 30),
-                          
+
                           // Sleep duration trend
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -604,14 +604,14 @@ class _HomeScreenState extends State<HomeScreen>
                               children: [
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
+                              children: [
+                                const Text(
                                       'Sleep Duration Trend',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                     ),
                                     Material(
                                       color: Colors.transparent,
@@ -797,17 +797,17 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         titlesData: FlTitlesData(
           show: true,
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              getTitlesWidget: (value, meta) {
+                                        bottomTitles: AxisTitles(
+                                          sideTitles: SideTitles(
+                                            showTitles: true,
+                                            getTitlesWidget: (value, meta) {
                 if (value >= 0 && value < dates.length) {
                   return Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Text(
                       dates[value.toInt()],
                       style: const TextStyle(
-                        color: Colors.white54,
+                                                color: Colors.white54,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -861,12 +861,12 @@ class _HomeScreenState extends State<HomeScreen>
     // If no records, show empty state
     if (_recentRecords.isEmpty) {
       return const Center(
-        child: Text(
+                                                  child: Text(
           'No sleep data available yet',
           style: TextStyle(color: Colors.white60),
-        ),
-      );
-    }
+                                                  ),
+                                                );
+                                              }
     
     // Sort the records by date (oldest to newest) for chronological display
     final displayRecords = List<SleepRecord>.from(_recentRecords);
@@ -918,83 +918,83 @@ class _HomeScreenState extends State<HomeScreen>
                   );
                 }
                 return const SizedBox();
-              },
-              reservedSize: 30,
-            ),
-          ),
+                                            },
+                                            reservedSize: 30,
+                                          ),
+                                        ),
           leftTitles: const AxisTitles(
-            sideTitles: SideTitles(
+                                          sideTitles: SideTitles(
               showTitles: true,
               getTitlesWidget: _getDurationTitles,
               reservedSize: 30,
-            ),
-          ),
+                                          ),
+                                        ),
           rightTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
           ),
-          topTitles: const AxisTitles(
+                                        topTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        minX: 0,
+                                        ),
+                                      ),
+                                      borderData: FlBorderData(show: false),
+                                      minX: 0,
         maxX: displayRecords.length - 1.0,
-        minY: 0,
-        maxY: 10,
-        lineBarsData: [
-          LineChartBarData(
+                                      minY: 0,
+                                      maxY: 10,
+                                      lineBarsData: [
+                                        LineChartBarData(
             spots: spots,
-            isCurved: true,
+                                          isCurved: true,
             color: AppTheme.primaryColor,
-            barWidth: 3,
-            isStrokeCapRound: true,
-            dotData: FlDotData(
-              show: true,
+                                          barWidth: 3,
+                                          isStrokeCapRound: true,
+                                          dotData: FlDotData(
+                                            show: true,
               getDotPainter: (spot, percent, barData, index) {
                 final severity = displayRecords[index].severity;
-                return FlDotCirclePainter(
+                                              return FlDotCirclePainter(
                   radius: 4,
                   color: _getColorForSeverity(severity),
-                  strokeWidth: 2,
+                                                strokeWidth: 2,
                   strokeColor: Colors.white,
-                );
-              },
-            ),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                colors: [
+                                              );
+                                            },
+                                          ),
+                                          belowBarData: BarAreaData(
+                                            show: true,
+                                            gradient: LinearGradient(
+                                              colors: [
                   AppTheme.primaryColor.withOpacity(0.5),
                   AppTheme.primaryColor.withOpacity(0.0),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
-        ],
-        lineTouchData: LineTouchData(
-          touchTooltipData: LineTouchTooltipData(
+                                              ],
+                                              begin: Alignment.topCenter,
+                                              end: Alignment.bottomCenter,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                      lineTouchData: LineTouchData(
+                                        touchTooltipData: LineTouchTooltipData(
             tooltipBgColor: const Color(0xFF6A47BB).withOpacity(0.8),
-            getTooltipItems: (touchedSpots) {
+                                          getTooltipItems: (touchedSpots) {
               return touchedSpots.map((spot) {
                 final index = spot.x.toInt();
                 if (index >= 0 && index < displayRecords.length) {
                   final record = displayRecords[index];
-                  return LineTooltipItem(
+                                              return LineTooltipItem(
                     '${record.date}\n${record.duration} hours',
-                    const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  );
+                                                const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              );
                 }
                 return null;
-              }).toList();
-            },
-          ),
-        ),
-      ),
+                                            }).toList();
+                                          },
+                                        ),
+                                      ),
+                                    ),
     );
   }
   
@@ -1070,31 +1070,31 @@ class _HomeScreenState extends State<HomeScreen>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: onTap,
+      onTap: onTap,
         splashColor: activeColor.withOpacity(0.2),
         highlightColor: activeColor.withOpacity(0.1),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Column(
+      child: Column(
             mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                icon,
-                color: isActive ? activeColor : Colors.white60,
-                size: isActive ? 28 : 24,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  color: isActive ? activeColor : Colors.white60,
-                  fontSize: 12,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            color: isActive ? activeColor : Colors.white60,
+            size: isActive ? 28 : 24,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isActive ? activeColor : Colors.white60,
+              fontSize: 12,
                   fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-                ),
-              ),
-            ],
+            ),
+          ),
+        ],
           ),
         ),
       ),
@@ -1121,7 +1121,7 @@ class DottedCirclePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
     final paint = Paint()
-      ..style = PaintingStyle.fill;
+          ..style = PaintingStyle.fill;
 
     // Draw more dots - don't skip as many
     for (int i = 0; i < numberOfDots; i++) {

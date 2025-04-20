@@ -27,7 +27,7 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
   List<SleepRecord> _allRecords = [];
   List<SleepRecord> _weeklyRecords = [];
   List<SleepRecord> _monthlyRecords = [];
-  StreamSubscription<List<SleepRecord>>? _recordsSubscription;
+  StreamSubscription? _recordsSubscription;
   
   // Analytics data
   Map<String, dynamic> _weeklyAnalytics = {};
@@ -736,33 +736,22 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
     );
   }
 
-  // Severity pie chart
   Widget _buildSeverityPieChart(List<SleepRecord> records) {
     if (records.isEmpty) {
-      return Container(
-        height: 280,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.1),
-            width: 1,
-          ),
-        ),
-        child: const Text(
-          'No sleep data available for this period',
+      return const Center(
+        child: Text(
+          'No sleep data available',
           style: TextStyle(color: Colors.white60),
         ),
       );
     }
-
+    
     // Count severity levels
     int lowCount = 0, mediumCount = 0, highCount = 0;
     for (final record in records) {
       switch (record.severity.toLowerCase()) {
         case 'low': lowCount++; break;
-        case 'medium': mediumCount++; break;
+        case 'medium': case 'med': mediumCount++; break;
         case 'high': highCount++; break;
       }
     }
@@ -770,13 +759,80 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
     final totalCount = lowCount + mediumCount + highCount;
     
     // Calculate percentages
-    final lowPercent = totalCount > 0 ? (lowCount / totalCount * 100).roundToDouble() : 0;
-    final mediumPercent = totalCount > 0 ? (mediumCount / totalCount * 100).roundToDouble() : 0;
-    final highPercent = totalCount > 0 ? (highCount / totalCount * 100).roundToDouble() : 0;
+    final lowPercent = totalCount > 0 ? (lowCount / totalCount * 100).round() : 0;
+    final mediumPercent = totalCount > 0 ? (mediumCount / totalCount * 100).round() : 0;
+    final highPercent = totalCount > 0 ? (highCount / totalCount * 100).round() : 0;
+    
+    // Define pie sections and colors
+    final sections = <PieChartSectionData>[];
+    
+    if (lowCount > 0) {
+      sections.add(
+        PieChartSectionData(
+          color: AppTheme.lowRiskColor,
+          value: lowCount.toDouble(),
+          title: '$lowPercent%',
+          radius: 50,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
+    
+    if (mediumCount > 0) {
+      sections.add(
+        PieChartSectionData(
+          color: AppTheme.mediumRiskColor,
+          value: mediumCount.toDouble(),
+          title: '$mediumPercent%',
+          radius: 50,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
+    
+    if (highCount > 0) {
+      sections.add(
+        PieChartSectionData(
+          color: AppTheme.highRiskColor,
+          value: highCount.toDouble(),
+          title: '$highPercent%',
+          radius: 50,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
+    
+    // If no data, show placeholder
+    if (sections.isEmpty) {
+      sections.add(
+        PieChartSectionData(
+          color: Colors.grey,
+          value: 1,
+          title: 'No Data',
+          radius: 50,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
     
     return Container(
-      height: 320,
-      padding: const EdgeInsets.all(16),
+      height: 250,
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
@@ -785,91 +841,49 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
           width: 1,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.all(16),
+      child: Row(
         children: [
-          const Text(
-            'Sleep Quality Distribution',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
+          // Pie chart
+          Expanded(
+            flex: 2,
+            child: PieChart(
+              PieChartData(
+                sections: sections,
+                centerSpaceRadius: 0,
+                sectionsSpace: 2,
+                startDegreeOffset: 180,
+              ),
             ),
           ),
-          const SizedBox(height: 16),
+          // Legend
           Expanded(
-            child: Row(
+            flex: 3,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Pie chart section
-                Expanded(
-                  flex: 2,
-                  child: PieChart(
-                    PieChartData(
-                      sectionsSpace: 3,
-                      centerSpaceRadius: 40,
-                      sections: [
-                        PieChartSectionData(
-                          value: lowCount.toDouble(),
-                          title: '$lowPercent%',
-                          color: Colors.green,
-                          radius: 70,
-                          titleStyle: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        PieChartSectionData(
-                          value: mediumCount.toDouble(),
-                          title: '$mediumPercent%',
-                          color: Colors.orange,
-                          radius: 70,
-                          titleStyle: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        PieChartSectionData(
-                          value: highCount.toDouble(),
-                          title: '$highPercent%',
-                          color: Colors.red,
-                          radius: 70,
-                          titleStyle: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                _buildPieChartLegendItem(
+                  'Low Risk', 
+                  lowCount, 
+                  AppTheme.lowRiskColor,
+                  'Good sleep quality',
                 ),
-                
-                // Legend section
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildPieLegendItem('Low', lowCount, Colors.green),
-                      const SizedBox(height: 16),
-                      _buildPieLegendItem('Medium', mediumCount, Colors.orange),
-                      const SizedBox(height: 16),
-                      _buildPieLegendItem('High', highCount, Colors.red),
-                    ],
-                  ),
+                const SizedBox(height: 16),
+                _buildPieChartLegendItem(
+                  'Medium Risk', 
+                  mediumCount, 
+                  AppTheme.mediumRiskColor,
+                  'Moderate sleep disturbance',
+                ),
+                const SizedBox(height: 16),
+                _buildPieChartLegendItem(
+                  'High Risk', 
+                  highCount, 
+                  AppTheme.highRiskColor,
+                  'Significant sleep disturbance',
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Based on ${totalCount} sleep records',
-            style: const TextStyle(
-              color: Colors.white60,
-              fontSize: 12,
             ),
           ),
         ],
@@ -877,76 +891,113 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
     );
   }
   
-  // Pie chart legend item
-  Widget _buildPieLegendItem(String label, int count, Color color) {
+  // Helper to build pie chart legend items
+  Widget _buildPieChartLegendItem(String label, int count, Color color, String description) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 16,
+          height: 16,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(3),
+            shape: BoxShape.circle,
           ),
+          margin: const EdgeInsets.only(top: 2),
         ),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(
-            '$label ($count)',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$label ($count)',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
       ],
     );
   }
-  
-  // Monthly progress indicators
+
   Widget _buildMonthlyProgressIndicators(List<SleepRecord> records, Map<String, dynamic> analytics) {
-    if (records.isEmpty) {
-      return Container(
-        height: 200,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.1),
-            width: 1,
-          ),
-        ),
-        child: const Text(
-          'No sleep data available for this period',
-          style: TextStyle(color: Colors.white60),
-        ),
-      );
-    }
-    
-    final avgDuration = analytics['avgDuration'] as double;
     final avgIrregularities = analytics['avgIrregularities'] as double;
+    final avgDuration = analytics['avgDuration'] as double;
     final improvement = analytics['improvement'] as double;
-    final trend = analytics['trend'] as String;
     
-    // Target values
-    const targetDuration = 8.0; // 8 hours is ideal
-    const targetIrregularities = 5.0; // Fewer than 5 is good
-    
-    // Calculate progress percentages (capped at 100%)
-    final durationProgress = (avgDuration / targetDuration * 100).clamp(0, 100);
-    
-    // For irregularities, less is better, so invert the scale
-    // 0 irregularities = 100%, targetIrregularities = 0%
-    final irregularitiesProgress = avgIrregularities <= targetIrregularities
-        ? 100.0
-        : ((targetIrregularities * 2 - avgIrregularities) / targetIrregularities * 100).clamp(0, 100);
+    return Column(
+      children: [
+        _buildProgressIndicator(
+          title: 'Sleep Duration',
+          subtitle: 'Average hours of sleep per night',
+          value: avgDuration,
+          maxValue: 10.0,
+          targetValue: 8.0,
+          valueFormat: '${avgDuration.toStringAsFixed(1)} hrs',
+          targetLabel: 'Target: 8 hrs',
+          color: AppTheme.primaryColor,
+          icon: Icons.nightlight_round,
+        ),
+        const SizedBox(height: 16),
+        _buildProgressIndicator(
+          title: 'Apnea Events',
+          subtitle: 'Average number of irregularities per night',
+          value: avgIrregularities,
+          maxValue: 30.0,
+          targetValue: 5.0,
+          valueFormat: avgIrregularities.toStringAsFixed(1),
+          targetLabel: 'Target: <5',
+          color: avgIrregularities <= 5 ? Colors.green : 
+                  avgIrregularities <= 15 ? AppTheme.mediumRiskColor : 
+                  AppTheme.highRiskColor,
+          icon: Icons.waves,
+          inverseProgress: true, // Lower is better
+        ),
+        const SizedBox(height: 16),
+        _buildTrendIndicator(
+          improvement: improvement,
+          records: records,
+        ),
+      ],
+    );
+  }
+  
+  // Helper to build progress indicators
+  Widget _buildProgressIndicator({
+    required String title,
+    required String subtitle,
+    required double value,
+    required double maxValue,
+    required double targetValue,
+    required String valueFormat,
+    required String targetLabel,
+    required Color color,
+    required IconData icon,
+    bool inverseProgress = false,
+  }) {
+    // Calculate progress
+    double progress = (value / maxValue).clamp(0.0, 1.0);
+    if (inverseProgress) {
+      progress = 1.0 - progress;
+    }
     
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: Colors.white.withOpacity(0.1),
           width: 1,
@@ -955,121 +1006,96 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Your Progress',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 24),
-          
-          // Sleep Duration Progress
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Average Sleep Duration',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    '${avgDuration.toStringAsFixed(1)}h / ${targetDuration.toStringAsFixed(1)}h',
-                    style: TextStyle(
-                      color: _getColorForValue(avgDuration, lowerIsBetter: false, threshold: 6.0),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: durationProgress / 100,
-                backgroundColor: Colors.white10,
-                color: _getColorForValue(avgDuration, lowerIsBetter: false, threshold: 6.0),
-                minHeight: 10,
-                borderRadius: BorderRadius.circular(5),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Apnea Events Progress
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Average Apnea Events',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
-                  ),
-                  Text(
-                    '${avgIrregularities.toStringAsFixed(1)} / ${targetIrregularities.toStringAsFixed(1)}',
-                    style: TextStyle(
-                      color: _getColorForValue(avgIrregularities, lowerIsBetter: true),
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: irregularitiesProgress / 100,
-                backgroundColor: Colors.white10,
-                color: _getColorForValue(avgIrregularities, lowerIsBetter: true),
-                minHeight: 10,
-                borderRadius: BorderRadius.circular(5),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 24),
-          
-          // Trend Indicator
           Row(
             children: [
+              Icon(
+                icon,
+                color: color,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                valueFormat,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Stack(
+            children: [
+              // Background
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                height: 8,
                 decoration: BoxDecoration(
-                  color: _getTrendColor(trend).withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _getTrendColor(trend),
-                    width: 1,
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              // Progress
+              Container(
+                height: 8,
+                width: MediaQuery.of(context).size.width * 0.7 * progress,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              // Target indicator
+              if (!inverseProgress)
+                Positioned(
+                  left: (targetValue / maxValue) * MediaQuery.of(context).size.width * 0.7,
+                  child: Container(
+                    height: 8,
+                    width: 2,
+                    color: Colors.white,
                   ),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _getTrendIcon(trend),
-                      color: _getTrendColor(trend),
-                      size: 16,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      _getTrendText(trend, improvement),
-                      style: TextStyle(
-                        color: _getTrendColor(trend),
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                inverseProgress ? 'High' : '0',
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 10,
+                ),
+              ),
+              Text(
+                targetLabel,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                ),
+              ),
+              Text(
+                inverseProgress ? '0' : 'Max',
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 10,
                 ),
               ),
             ],
@@ -1079,50 +1105,95 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
     );
   }
   
-  Color _getTrendColor(String trend) {
-    switch (trend) {
-      case 'improving': return Colors.green;
-      case 'deteriorating': return Colors.red;
-      default: return Colors.orange;
-    }
-  }
-  
-  IconData _getTrendIcon(String trend) {
-    switch (trend) {
-      case 'improving': return Icons.trending_up;
-      case 'deteriorating': return Icons.trending_down;
-      default: return Icons.trending_flat;
-    }
-  }
-  
-  String _getTrendText(String trend, double improvement) {
-    switch (trend) {
-      case 'improving': 
-        return 'Improving (${improvement.abs().toStringAsFixed(1)}%)';
-      case 'deteriorating': 
-        return 'Declining (${improvement.abs().toStringAsFixed(1)}%)';
-      default: 
-        return 'Stable';
-    }
-  }
-  
-  Color _getColorForValue(double value, {required bool lowerIsBetter, double? threshold, double? good, double? moderate}) {
-    if (lowerIsBetter) {
-      final goodValue = good ?? 5.0;
-      final moderateValue = moderate ?? 15.0;
-      
-      if (value <= goodValue) return Colors.green;
-      if (value <= moderateValue) return Colors.orange;
-      return Colors.red;
+  // Helper to build trend indicator
+  Widget _buildTrendIndicator({
+    required double improvement,
+    required List<SleepRecord> records,
+  }) {
+    // Set trend info
+    IconData trendIcon;
+    Color trendColor;
+    String trendText;
+    String description;
+    
+    if (improvement > 10) {
+      trendIcon = Icons.trending_down;
+      trendColor = Colors.green;
+      trendText = 'Significant Improvement';
+      description = 'Your sleep apnea patterns are showing notable improvement. Keep up with your current habits.';
+    } else if (improvement > 0) {
+      trendIcon = Icons.trending_down;
+      trendColor = Colors.green;
+      trendText = 'Slight Improvement';
+      description = 'Your sleep patterns are gradually improving. Continue monitoring and following recommendations.';
+    } else if (improvement < -10) {
+      trendIcon = Icons.trending_up;
+      trendColor = Colors.red;
+      trendText = 'Significant Decline';
+      description = 'Your sleep patterns have worsened considerably. Consider consulting with a healthcare professional.';
+    } else if (improvement < 0) {
+      trendIcon = Icons.trending_up;
+      trendColor = Colors.orange;
+      trendText = 'Slight Decline';
+      description = 'Your sleep patterns show a slight worsening. Review and adjust your sleep habits.';
     } else {
-      final targetValue = threshold ?? 7.0;
-      final goodValue = good ?? targetValue;
-      final moderateValue = moderate ?? (targetValue - 2);
-      
-      if (value >= goodValue) return Colors.green;
-      if (value >= moderateValue) return Colors.orange;
-      return Colors.red;
+      trendIcon = Icons.trending_flat;
+      trendColor = Colors.amber;
+      trendText = 'Stable Pattern';
+      description = 'Your sleep patterns remain consistent. Continue monitoring for any changes.';
     }
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: trendColor.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              trendIcon,
+              color: trendColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  trendText,
+                  style: TextStyle(
+                    color: trendColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // Helper methods
@@ -1139,13 +1210,9 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
   }
 
   String _getMostCommonSeverity(int low, int med, int high) {
-    if (low >= med && low >= high) {
-      return 'Low';
-    } else if (med >= low && med >= high) {
-      return 'Medium';
-    } else {
-      return 'High';
-    }
+    if (low >= med && low >= high) return 'Low';
+    if (med >= low && med >= high) return 'Medium';
+    return 'High';
   }
 
   AxisTitles _getBottomTitles(List<SleepRecord> records, bool isWeekly) {
@@ -1886,16 +1953,33 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
     );
   }
   
-  // Helper to get severity color
+  // Helper to get color based on value
+  Color _getColorForValue(double value, {
+    required bool lowerIsBetter,
+    required double good,
+    required double moderate,
+  }) {
+    if (lowerIsBetter) {
+      if (value <= good) return Colors.green;
+      if (value <= moderate) return Colors.orange;
+      return Colors.red;
+    } else {
+      if (value >= good) return Colors.green;
+      if (value >= moderate) return Colors.orange;
+      return Colors.red;
+    }
+  }
+
+  // Helper method to get severity color
   Color _getSeverityColor(String severity) {
     switch (severity.toLowerCase()) {
       case 'low':
-        return Colors.green;
+        return AppTheme.lowRiskColor;
       case 'medium':
       case 'med':
-        return Colors.orange;
+        return AppTheme.mediumRiskColor;
       case 'high':
-        return Colors.red;
+        return AppTheme.highRiskColor;
       default:
         return Colors.grey;
     }
