@@ -6,6 +6,7 @@ import '../models/sleep_record.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart';
 import '../screens/profile_screen.dart';
+import '../services/settings_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:async';
 
@@ -20,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   final SleepDetectorService _sleepDetectorService = SleepDetectorService();
   final AuthService _authService = AuthService();
+  final SettingsService _settingsService = SettingsService();
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
   late Animation<double> _rotationAnimation;
@@ -29,10 +31,15 @@ class _HomeScreenState extends State<HomeScreen>
   Timer? _recordingTimer;
   String _recordingDuration = "00:00";
   
+  // Settings
+  bool _autoRecording = false;
+  Timer? _autoRecordingTimer;
+  
   // Last sleep sessions data
   List<SleepRecord> _recentRecords = [];
   StreamSubscription? _recordsSubscription;
   StreamSubscription? _userSubscription;
+  StreamSubscription? _settingsSubscription;
   
   // User data
   User? _currentUser;
@@ -58,9 +65,6 @@ class _HomeScreenState extends State<HomeScreen>
 
     // Start the animation
     _animationController.repeat();
-
-    // Make sure the service is ready
-    _sleepDetectorService.init();
     
     // Load recent records and set up subscription for updates
     _setupRecordsHandling();
@@ -74,8 +78,63 @@ class _HomeScreenState extends State<HomeScreen>
       }
     });
     
+    // Set up settings subscription
+    _settingsSubscription = _settingsService.settingsStream.listen((settings) {
+      final autoRecording = settings['auto_recording'] as bool;
+      if (mounted && autoRecording != _autoRecording) {
+        setState(() {
+          _autoRecording = autoRecording;
+        });
+        
+        if (_autoRecording) {
+          _scheduleAutoRecording();
+        } else {
+          _cancelAutoRecording();
+        }
+      }
+    });
+    
+    // Load initial settings
+    _loadSettings();
+    
     // Get current user immediately
     _currentUser = _authService.currentUser;
+  }
+  
+  void _loadSettings() {
+    _autoRecording = _settingsService.autoRecording;
+    if (_autoRecording) {
+      _scheduleAutoRecording();
+    }
+  }
+  
+  void _scheduleAutoRecording() {
+    // Cancel existing timer if any
+    _cancelAutoRecording();
+    
+    // For demo purposes, schedule auto recording to start in 10 seconds if enabled
+    _autoRecordingTimer = Timer(const Duration(seconds: 10), () {
+      if (_autoRecording && !_sleepDetectorService.isRecording && mounted) {
+        debugPrint("🔄 HomeScreen: Auto recording starting...");
+        _toggleRecording();
+        
+        // Show a notification
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Auto recording started'),
+            backgroundColor: AppTheme.primaryColor,
+          ),
+        );
+      }
+    });
+    
+    debugPrint("🔄 HomeScreen: Auto recording scheduled");
+  }
+  
+  void _cancelAutoRecording() {
+    _autoRecordingTimer?.cancel();
+    _autoRecordingTimer = null;
+    debugPrint("🔄 HomeScreen: Auto recording canceled");
   }
   
   @override
@@ -123,8 +182,9 @@ class _HomeScreenState extends State<HomeScreen>
     _animationController.dispose();
     _recordsSubscription?.cancel();
     _userSubscription?.cancel();
-    _sleepDetectorService.dispose();
+    _settingsSubscription?.cancel();
     _recordingTimer?.cancel();
+    _autoRecordingTimer?.cancel();
     super.dispose();
   }
 
@@ -154,9 +214,17 @@ class _HomeScreenState extends State<HomeScreen>
         Future.delayed(const Duration(milliseconds: 500), () {
           Navigator.pushNamed(context, '/history');
         });
+        
+        // If auto recording is enabled, schedule next recording
+        if (_autoRecording) {
+          _scheduleAutoRecording();
+        }
       } else {
         _sleepDetectorService.startRecording();
         _startRecordingTimer();
+        
+        // Cancel auto recording timer while manually recording
+        _cancelAutoRecording();
       }
       setState(() {}); // Refresh UI
     } catch (e) {
@@ -560,6 +628,13 @@ class _HomeScreenState extends State<HomeScreen>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
+                    _buildNavItem(Icons.home_rounded, 'Home', true, () {}),
+                    _buildNavItem(Icons.history_outlined, 'History', false, () {
+                      Navigator.pushNamed(context, '/history');
+                    }),
+                    _buildNavItem(Icons.trending_up_outlined, 'Trends', false, () {
+                      Navigator.pushNamed(context, '/trends');
+                    }),
                     _buildNavItem(
                       Icons.settings_outlined,
                       'Settings',
@@ -568,13 +643,6 @@ class _HomeScreenState extends State<HomeScreen>
                         Navigator.pushNamed(context, '/settings');
                       },
                     ),
-                    _buildNavItem(Icons.home_rounded, 'Home', true, () {}),
-                    _buildNavItem(Icons.trending_up_outlined, 'Trends', false, () {
-                      Navigator.pushNamed(context, '/trends');
-                    }),
-                    _buildNavItem(Icons.history_outlined, 'History', false, () {
-                      Navigator.pushNamed(context, '/history');
-                    }),
                   ],
                 ),
               ),
@@ -917,25 +985,36 @@ class _HomeScreenState extends State<HomeScreen>
   ) {
     const Color activeColor = Color(0xFF6A47BB); // Updated to match Opal purple
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            icon,
-            color: isActive ? activeColor : Colors.white60,
-            size: isActive ? 28 : 24,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: activeColor.withOpacity(0.2),
+        highlightColor: activeColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                icon,
+                color: isActive ? activeColor : Colors.white60,
+                size: isActive ? 28 : 24,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isActive ? activeColor : Colors.white60,
+                  fontSize: 12,
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isActive ? activeColor : Colors.white60,
-              fontSize: 12,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

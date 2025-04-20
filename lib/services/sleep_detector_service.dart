@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:intl/intl.dart';
 import '../models/sleep_record.dart';
 import 'package:flutter/foundation.dart';
+import 'settings_service.dart';
 
 // Static variable to hold all records across app for direct access
 List<SleepRecord> globalSleepRecords = [];
@@ -71,6 +72,31 @@ class SleepDetectorService {
     
     // Initialize with preset records regardless of whether records is empty
     _initPresetRecords();
+    
+    // Initialize settings service
+    _settingsService = SettingsService();
+    
+    // Listen for settings changes
+    _settingsService.settingsStream.listen(_handleSettingsChange);
+  }
+  
+  // Handle settings changes
+  void _handleSettingsChange(Map<String, dynamic> settings) {
+    // Update local settings based on user preferences
+    _sensitivityLevel = settings['sensitivity_level'];
+    
+    // Parse recording duration
+    final durationString = settings['recording_duration'];
+    if (durationString == 'Until stopped') {
+      _recordingDurationHours = null; // Unlimited duration
+    } else {
+      // Extract hours from string like "8 hours"
+      final hoursStr = durationString.split(' ').first;
+      _recordingDurationHours = double.tryParse(hoursStr) ?? 8.0;
+    }
+    
+    // Log settings update
+    debugPrint("🛠️ SleepDetectorService: Settings updated - sensitivity: $_sensitivityLevel, duration: $_recordingDurationHours");
   }
   
   void _initPresetRecords() {
@@ -95,171 +121,165 @@ class SleepDetectorService {
   DateTime? _recordingStartTime;
   bool _isInitialized = false;
   
+  // Settings from SettingsService
+  late final SettingsService _settingsService;
+  double _sensitivityLevel = 2.0; // Default medium sensitivity
+  double? _recordingDurationHours = 8.0; // Default 8 hours, null means unlimited
+  
   // Controllers for streams - late initialization
   late final StreamController<int> _irregularitiesController;
   late final StreamController<List<SleepRecord>> _recordsController;
-
-  // Initialize service (can be used for permissions or setup)
-  void init() {
-    // Only initialize once
-    if (_isInitialized) return;
-    
-    _isInitialized = true;
-    
-    // Immediately emit initial values on streams to unblock any waiting StreamBuilders
-    Future.microtask(() {
-      try {
-        _recordsController.add(List<SleepRecord>.from(globalSleepRecords));
-        _irregularitiesController.add(_irregularities);
-        debugPrint("🔍 SleepDetectorService initialized with ${globalSleepRecords.length} records");
-      } catch (e) {
-        debugPrint("🛠️ SleepDetectorService ERROR during init: $e");
-      }
-    });
-  }
-
-  // Force a refresh of all streams - useful for debugging
-  void refreshStreams() {
-    debugPrint("🔄 SleepDetectorService: Manually refreshing streams");
-    try {
-      _recordsController.add(List<SleepRecord>.from(globalSleepRecords));
-      _irregularitiesController.add(_irregularities);
-    } catch (e) {
-      debugPrint("🛠️ SleepDetectorService ERROR during refresh: $e");
-    }
-  }
-
-  // Access streams
+  
+  // Getters
   Stream<int> get irregularitiesStream => _irregularitiesController.stream;
   Stream<List<SleepRecord>> get recordsStream => _recordsController.stream;
-
-  // Start recording
+  bool get isRecording => _isRecording;
+  int get irregularities => _irregularities;
+  
+  // Start recording - can be triggered manually or automatically
   void startRecording() {
     if (_isRecording) return;
-
+    
+    debugPrint("🛠️ SleepDetectorService: Recording started with sensitivity: $_sensitivityLevel");
+    
     _isRecording = true;
     _irregularities = 0;
     _recordingStartTime = DateTime.now();
     _irregularitiesController.add(_irregularities);
     
-    debugPrint("🔴 Recording started at ${_recordingStartTime!.toString()}");
-
-    // Simulate irregularities detection with more frequent updates
-    Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!_isRecording) {
-        timer.cancel();
-        return;
-      }
-
-      // Random chance to detect an irregularity (apnea event)
-      // More realistic simulation with varying probabilities
-      final random = DateTime.now().millisecondsSinceEpoch % 100;
-      
-      // For MVP DEMO: Increase likelihood of events to ensure we see some
-      // Approximately 25% chance of detecting an irregularity each check
-      if (random < 25) {
-        // Sometimes detect multiple irregularities at once (simulating clustered events)
-        final eventCount = random < 5 ? 2 : 1; // 5% chance of detecting 2 events at once
-        _irregularities += eventCount;
-        _irregularitiesController.add(_irregularities);
+    // Start detecting irregularities
+    _startDetectingIrregularities();
+    
+    // Set up automatic stop if duration is specified
+    if (_recordingDurationHours != null) {
+      final durationMs = (_recordingDurationHours! * 60 * 60 * 1000).toInt();
+      Future.delayed(Duration(milliseconds: durationMs), () {
+        if (_isRecording) {
+          debugPrint("🛠️ SleepDetectorService: Auto-stopping after $_recordingDurationHours hours");
+          stopRecording();
+        }
+      });
+    }
+  }
+  
+  // Stop recording
+  SleepRecord? stopRecording() {
+    if (!_isRecording || _recordingStartTime == null) return null;
+    
+    _isRecording = false;
+    final now = DateTime.now();
+    final recordingDuration = now.difference(_recordingStartTime!);
+    
+    // Calculate duration in hours
+    final durationHours = recordingDuration.inMinutes / 60;
+    
+    // Format the date
+    final formattedDate = DateFormat('MMM d, yyyy').format(_recordingStartTime!);
+    
+    // Determine severity based on irregularity count and sensitivity
+    final String severity = _calculateSeverity(_irregularities, _sensitivityLevel);
+    
+    // Create new record
+    final newRecord = SleepRecord(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      date: formattedDate,
+      duration: double.parse(durationHours.toStringAsFixed(1)),
+      irregularities: _irregularities,
+      severity: severity,
+    );
+    
+    // Add to global records
+    globalSleepRecords.insert(0, newRecord);
+    
+    // Emit updated records
+    _recordsController.add(List<SleepRecord>.from(globalSleepRecords));
+    
+    debugPrint("🛠️ SleepDetectorService: Recording stopped, created record with ${_irregularities} irregularities, severity: $severity");
+    
+    return newRecord;
+  }
+  
+  // Calculate severity based on irregularities and sensitivity
+  String _calculateSeverity(int irregularities, double sensitivity) {
+    // Adjust thresholds based on sensitivity level
+    int lowThreshold, highThreshold;
+    
+    switch (sensitivity.round()) {
+      case 1: // Low sensitivity
+        lowThreshold = 10;
+        highThreshold = 25;
+        break;
+      case 3: // High sensitivity
+        lowThreshold = 3;
+        highThreshold = 10;
+        break;
+      case 2: // Medium sensitivity (default)
+      default:
+        lowThreshold = 5;
+        highThreshold = 15;
+        break;
+    }
+    
+    // Determine severity
+    if (irregularities >= highThreshold) {
+      return 'High';
+    } else if (irregularities >= lowThreshold) {
+      return 'Medium';
+    } else {
+      return 'Low';
+    }
+  }
+  
+  // Simulates detection of irregularities during sleep
+  void _startDetectingIrregularities() {
+    if (!_isRecording) return;
+    
+    // Random irregularity detection simulation
+    // Higher sensitivity produces more detected irregularities
+    final detectionInterval = 
+        _sensitivityLevel == 1.0 ? 15000 : // Low sensitivity: slower detection
+        _sensitivityLevel == 3.0 ? 5000 :  // High sensitivity: faster detection
+        10000;                             // Medium sensitivity: normal detection
+    
+    Future.delayed(Duration(milliseconds: detectionInterval), () {
+      if (_isRecording) {
+        // Randomly determine if an irregularity is detected
+        // Higher sensitivity increases chance of detection
+        final detectionRate = 
+            _sensitivityLevel == 1.0 ? 0.3 : // Low sensitivity: 30% chance
+            _sensitivityLevel == 3.0 ? 0.7 : // High sensitivity: 70% chance
+            0.5;                             // Medium sensitivity: 50% chance
+        
+        if (detectionRate > 0.5) {
+          _irregularities++;
+          _irregularitiesController.add(_irregularities);
+          debugPrint("🛠️ SleepDetectorService: Irregularity detected - Total: $_irregularities");
+        }
+        
+        // Continue detecting
+        _startDetectingIrregularities();
       }
     });
   }
-
-  // Stop recording
-  void stopRecording() {
-    if (!_isRecording) return;
-
-    _isRecording = false;
-    
-    // Calculate duration in hours
-    double duration = 0.0;
-    if (_recordingStartTime != null) {
-      final now = DateTime.now();
-      final difference = now.difference(_recordingStartTime!);
-      // Convert to hours with one decimal place
-      duration = difference.inMinutes / 60.0;
-      
-      // For demo purposes, if recording duration is too short, make it at least 0.1 hours (6 minutes)
-      duration = duration < 0.1 ? 0.1 : duration;
-    } else {
-      // If start time was somehow not recorded, use a default
-      duration = 0.1;
-    }
-    
-    // Format date nicely
-    final dateFormat = DateFormat('MMM d, yyyy');
-    final formattedDate = dateFormat.format(DateTime.now());
-    
-    // Generate a simple ID
-    final id = DateTime.now().millisecondsSinceEpoch.toString();
-
-    // Create a new record - ensure we have at least a few irregularities for demo purposes
-    final irregularitiesCount = _irregularities < 1 ? 3 + (id.hashCode % 10) : _irregularities;
-    
-    final newRecord = SleepRecord(
-      date: formattedDate,
-      duration: double.parse(duration.toStringAsFixed(1)), // Round to 1 decimal place
-      irregularities: irregularitiesCount,
-      severity: _getSeverity(irregularitiesCount),
-      id: id,
-    );
-
-    // Add to records list at the beginning (most recent first)
-    globalSleepRecords.insert(0, newRecord);
-    
-    // Create a new list to ensure reference changes
-    final updatedRecords = List<SleepRecord>.from(globalSleepRecords);
-    
-    // Notify listeners about the updated records
+  
+  // Get record by ID
+  SleepRecord? getRecordById(String id) {
     try {
-      _recordsController.add(updatedRecords);
-      debugPrint("🛑 Recording stopped. New record added to stream (${updatedRecords.length} total)");
+      return globalSleepRecords.firstWhere((record) => record.id == id);
     } catch (e) {
-      debugPrint("🛠️ ERROR adding record to stream: $e");
+      return null;
     }
-    
-    // Debug log
-    debugPrint("   - Date: ${newRecord.date}");
-    debugPrint("   - Duration: ${newRecord.duration} hours");
-    debugPrint("   - Irregularities: ${newRecord.irregularities}");
-    debugPrint("   - Severity: ${newRecord.severity}");
-    debugPrint("   - ID: ${newRecord.id}");
-    
-    // Reset recording start time
-    _recordingStartTime = null;
   }
-
-  // Get severity based on irregularities count
-  String _getSeverity(int irregularities) {
-    if (irregularities < 5) return 'Low';
-    if (irregularities < 20) return 'Medium';
-    return 'High';
+  
+  // Refresh streams with current data
+  void refreshStreams() {
+    _irregularitiesController.add(_irregularities);
+    _recordsController.add(List<SleepRecord>.from(globalSleepRecords));
   }
-
-  // Get all records
-  List<SleepRecord> getRecords() {
-    debugPrint("📋 SleepDetectorService.getRecords() called, returning ${globalSleepRecords.length} records");
-    return List<SleepRecord>.from(globalSleepRecords);
-  }
-
-  // Check if recording
-  bool get isRecording => _isRecording;
-
-  // Reset to only preset records (useful for demos)
-  void resetToPresetRecords() {
-    debugPrint("🔄 SleepDetectorService: Resetting to preset records only");
-    _initPresetRecords();
-  }
-
-  // Dispose resources (should only be called when app is closing)
+  
+  // Dispose resources
   void dispose() {
-    debugPrint("🚮 SleepDetectorService: dispose called");
-    if (!_irregularitiesController.isClosed) {
-      _irregularitiesController.close();
-    }
-    if (!_recordsController.isClosed) {
-      _recordsController.close();
-    }
+    _irregularitiesController.close();
+    _recordsController.close();
   }
 }

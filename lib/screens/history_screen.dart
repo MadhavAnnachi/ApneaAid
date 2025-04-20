@@ -25,9 +25,6 @@ class _HistoryScreenState extends State<HistoryScreen> with WidgetsBindingObserv
     debugPrint("🔍 History Screen: initState");
     WidgetsBinding.instance.addObserver(this);
     
-    // Ensure service is initialized
-    _sleepDetectorService.init();
-    
     // Manually force a refresh of all streams in the service
     _sleepDetectorService.refreshStreams();
     

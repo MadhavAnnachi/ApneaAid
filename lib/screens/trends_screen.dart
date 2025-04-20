@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'dart:async'; // Add this import for StreamSubscription
+import 'dart:async'; // Import for StreamSubscription
 import 'package:fl_chart/fl_chart.dart';
 import '../theme/app_theme.dart';
 import '../models/sleep_record.dart';
 import '../services/sleep_detector_service.dart';
+import 'package:intl/intl.dart';
 
 class TrendsScreen extends StatefulWidget {
   const TrendsScreen({Key? key}) : super(key: key);
@@ -36,9 +37,6 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    
-    // Initialize service
-    _sleepDetectorService.init();
     
     // Load initial data
     _loadRecordsData();
@@ -77,6 +75,17 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
     
     // Debug
     debugPrint("Trends: Loaded ${_allRecords.length} records (${_weeklyRecords.length} weekly, ${_monthlyRecords.length} monthly)");
+  }
+  
+  // Refresh data - called when user pulls to refresh
+  Future<void> _refreshData() async {
+    // Force service to refresh streams
+    _sleepDetectorService.refreshStreams();
+    
+    // Update local data
+    setState(() {
+      _loadRecordsData();
+    });
   }
   
   List<SleepRecord> _filterRecordsForPeriod(List<SleepRecord> records, int days) {
@@ -175,266 +184,550 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
     _recordsSubscription?.cancel();
     super.dispose();
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        title: const Text(
-          'Sleep Trends',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.black,
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppTheme.primaryColor,
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(text: 'WEEKLY'),
-            Tab(text: 'MONTHLY'),
-            Tab(text: 'INSIGHTS'),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showFilterOptions,
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          // Background gradient effect
-          Positioned.fill(
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFF4A2B82).withOpacity(0.5),
-                    Colors.black.withOpacity(0.2),
-                  ],
-                  center: Alignment.topCenter,
-                  radius: 0.9,
-                ),
-              ),
-            ),
-          ),
-          
-          // Add subtle side glow
-          Positioned(
-            top: 50,
-            right: -150,
-            child: Container(
-              width: 300,
-              height: 300,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: RadialGradient(
-                  colors: [
-                    const Color(0xFF6A47BB).withOpacity(0.35),
-                    Colors.transparent,
-                  ],
-                  stops: const [0.2, 1.0],
-                ),
-              ),
-            ),
-          ),
-          
-          // Main content
-          TabBarView(
-            controller: _tabController,
-            children: [
-              _buildWeeklyTrendsView(_weeklyRecords, _weeklyAnalytics),
-              _buildMonthlyTrendsView(_monthlyRecords, _monthlyAnalytics),
-              _buildInsightsView(_allRecords),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWeeklyTrendsView(List<SleepRecord> records, Map<String, dynamic> analytics) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Weekly summary card with trend indicators
-          _buildEnhancedSummaryCard(records, analytics, 'Weekly'),
-          const SizedBox(height: 24),
-          
-          // Irregularities graph
-          if (_showIrregularities) ...[
-            _buildSectionTitle('Apnea Events Pattern', icon: Icons.multiline_chart),
-            const SizedBox(height: 8),
-            _buildEnhancedIrregularitiesChart(records, isWeekly: true),
-            const SizedBox(height: 24),
-          ],
-          
-          // Sleep duration graph with severity overlay
-          if (_showDuration) ...[
-            _buildSectionTitle('Sleep Duration & Quality', icon: Icons.nightlight_round),
-            const SizedBox(height: 8),
-            _buildEnhancedDurationChart(records, isWeekly: true),
-            const SizedBox(height: 24),
-          ],
-          
-          // Sleep severity distribution
-          if (_showSeverity) ...[
-            _buildSectionTitle('Severity Distribution', icon: Icons.pie_chart),
-            const SizedBox(height: 8),
-            _buildSeverityPieChart(records),
-            const SizedBox(height: 24),
-          ],
-          
-          // Sleep pattern analysis
-          if (_showRecommendations) ...[
-            _buildSectionTitle('Weekly Analysis', icon: Icons.analytics),
-            const SizedBox(height: 8),
-            _buildSleepPatternAnalysis(records, analytics),
-            const SizedBox(height: 40),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMonthlyTrendsView(List<SleepRecord> records, Map<String, dynamic> analytics) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Monthly summary card
-          _buildEnhancedSummaryCard(records, analytics, 'Monthly'),
-          const SizedBox(height: 24),
-          
-          // Irregularities graph with trend line
-          if (_showIrregularities) ...[
-            _buildSectionTitle('Monthly Apnea Events', icon: Icons.timeline),
-            const SizedBox(height: 8),
-            _buildEnhancedIrregularitiesChart(records, isWeekly: false),
-            const SizedBox(height: 24),
-          ],
-          
-          // Sleep quality heatmap
-          if (_showDuration) ...[
-            _buildSectionTitle('Sleep Duration Pattern', icon: Icons.hotel),
-            const SizedBox(height: 8),
-            _buildEnhancedDurationChart(records, isWeekly: false),
-            const SizedBox(height: 24),
-          ],
-          
-          // Monthly progress metrics
-          if (_showSeverity) ...[
-            _buildSectionTitle('Monthly Progress', icon: Icons.insights),
-            const SizedBox(height: 12),
-            _buildMonthlyProgressIndicators(records, analytics),
-            const SizedBox(height: 24),
-          ],
-          
-          // Recommendations based on data
-          if (_showRecommendations) ...[
-            _buildSectionTitle('Recommended Actions', icon: Icons.lightbulb_outline),
-            const SizedBox(height: 8),
-            _buildRecommendations(analytics),
-            const SizedBox(height: 40),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard(List<SleepRecord> records, String timeFrame) {
-    // Calculate averages and trends
-    final avgIrregularities = records.isEmpty 
-        ? 0.0 
-        : records.map((r) => r.irregularities).reduce((a, b) => a + b) / records.length;
-    
-    final avgDuration = records.isEmpty 
-        ? 0.0 
-        : records.map((r) => r.duration).reduce((a, b) => a + b) / records.length;
-    
-    // Count severity distribution
-    int lowCount = 0, medCount = 0, highCount = 0;
-    for (final record in records) {
-      switch (record.severity.toLowerCase()) {
-        case 'low': lowCount++; break;
-        case 'medium': case 'med': medCount++; break;
-        case 'high': highCount++; break;
+  
+  // Convert string date to DateTime object for better comparison
+  DateTime _parseDate(String dateStr) {
+    try {
+      return DateFormat('MMM d, yyyy').parse(dateStr);
+    } catch (e) {
+      // If parsing with the full format fails, try with a shorter format
+      try {
+        return DateFormat('MMM d').parse(dateStr);
+      } catch (e) {
+        // Return a default date if both parsing attempts fail
+        debugPrint("Error parsing date: $dateStr - $e");
+        return DateTime.now();
       }
     }
+  }
+
+  // Format DateTime to readable string
+  String _formatDate(DateTime date) {
+    return DateFormat('MMM d, yyyy').format(date);
+  }
+
+  // Sort records by date
+  List<SleepRecord> _sortRecordsByDate(List<SleepRecord> records, {bool ascending = true}) {
+    final sortedRecords = List<SleepRecord>.from(records);
+    sortedRecords.sort((a, b) {
+      final dateA = _parseDate(a.date);
+      final dateB = _parseDate(b.date);
+      return ascending ? dateA.compareTo(dateB) : dateB.compareTo(dateA);
+    });
+    return sortedRecords;
+  }
+
+  // Enhanced duration chart with gradients and animations
+  Widget _buildEnhancedDurationChart(List<SleepRecord> filteredRecords) {
+    if (filteredRecords.isEmpty) {
+      return const Center(
+        child: Text(
+          'No sleep data available for this period',
+          style: TextStyle(color: Colors.white60),
+        ),
+      );
+    }
+
+    // Sort records by date
+    final sortedRecords = _sortRecordsByDate(filteredRecords);
     
-    return Card(
-      color: AppTheme.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$timeFrame Summary',
+    // Prepare data points
+    final spots = <FlSpot>[];
+    final dates = <DateTime>[];
+    final durations = <double>[];
+    
+    for (var i = 0; i < sortedRecords.length; i++) {
+      final record = sortedRecords[i];
+      spots.add(FlSpot(i.toDouble(), record.duration));
+      dates.add(_parseDate(record.date));
+      durations.add(record.duration);
+    }
+    
+    // Calculate average, min and max values
+    final avgDuration = durations.isNotEmpty 
+        ? durations.reduce((a, b) => a + b) / durations.length 
+        : 0.0;
+    final minDuration = durations.isNotEmpty 
+        ? durations.reduce((a, b) => a < b ? a : b) 
+        : 0.0;
+    final maxDuration = durations.isNotEmpty 
+        ? durations.reduce((a, b) => a > b ? a : b) 
+        : 0.0;
+    
+    return Container(
+      height: 280,
+      padding: const EdgeInsets.fromLTRB(0, 16, 16, 0),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
+            child: Text(
+              'Sleep Duration (Hours)',
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const Divider(color: Colors.white24),
-            const SizedBox(height: 8),
-            
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, bottom: 16.0),
+            child: Row(
               children: [
-                _buildSummaryItem(
-                  'Avg. Events', 
-                  '${avgIrregularities.toStringAsFixed(1)}',
-                  Icons.error_outline,
-                ),
-                _buildSummaryItem(
-                  'Avg. Sleep', 
-                  '${avgDuration.toStringAsFixed(1)}h',
-                  Icons.bedtime_outlined,
-                ),
-                _buildSummaryItem(
-                  'Most Common', 
-                  _getMostCommonSeverity(lowCount, medCount, highCount),
-                  Icons.analytics_outlined,
-                ),
+                _buildChartLegendItem('Avg: ${avgDuration.toStringAsFixed(1)}h', Colors.white),
+                const SizedBox(width: 16),
+                _buildChartLegendItem('Min: ${minDuration.toStringAsFixed(1)}h', Colors.blue[200]!),
+                const SizedBox(width: 16),
+                _buildChartLegendItem('Max: ${maxDuration.toStringAsFixed(1)}h', Colors.green[300]!),
               ],
             ),
-          ],
-        ),
+          ),
+          Expanded(
+            child: spots.isEmpty 
+                ? const Center(child: Text('No data available', style: TextStyle(color: Colors.white60)))
+                : LineChart(
+                    LineChartData(
+                      lineTouchData: LineTouchData(
+                        touchTooltipData: LineTouchTooltipData(
+                          tooltipBgColor: Colors.blueGrey.shade800.withOpacity(0.8),
+                          getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                            return touchedSpots.map((spot) {
+                              final index = spot.x.toInt();
+                              if (index >= 0 && index < dates.length) {
+                                final dateStr = DateFormat('MMM d').format(dates[index]);
+                                return LineTooltipItem(
+                                  '$dateStr\n${spot.y.toStringAsFixed(1)} hours',
+                                  const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                );
+                              }
+                              return null;
+                            }).toList();
+                          },
+                        ),
+                        handleBuiltInTouches: true,
+                      ),
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: true,
+                        drawHorizontalLine: true,
+                        horizontalInterval: 2,
+                        getDrawingHorizontalLine: (value) {
+                          return FlLine(
+                            color: Colors.white10,
+                            strokeWidth: 1,
+                          );
+                        },
+                        getDrawingVerticalLine: (value) {
+                          return FlLine(
+                            color: Colors.white10,
+                            strokeWidth: 1,
+                          );
+                        },
+                      ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 30,
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              final index = value.toInt();
+                              if (index >= 0 && index < dates.length && index % 2 == 0) {
+                                return SideTitleWidget(
+                                  axisSide: meta.axisSide,
+                                  child: Text(
+                                    DateFormat('d').format(dates[index]),
+                                    style: const TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: 2,
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              return SideTitleWidget(
+                                axisSide: meta.axisSide,
+                                child: Text(
+                                  value.toInt().toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              );
+                            },
+                            reservedSize: 25,
+                          ),
+                        ),
+                        topTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                      ),
+                      borderData: FlBorderData(
+                        show: false,
+                      ),
+                      minX: 0,
+                      maxX: (spots.length - 1).toDouble(),
+                      minY: (minDuration - 1).clamp(0, double.infinity),
+                      maxY: maxDuration + 1,
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: spots,
+                          isCurved: true,
+                          curveSmoothness: 0.3,
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.blue[700]!,
+                              Colors.blue[300]!,
+                            ],
+                          ),
+                          barWidth: 3,
+                          isStrokeCapRound: true,
+                          dotData: FlDotData(
+                            show: true,
+                            getDotPainter: (spot, percent, barData, index) {
+                              return FlDotCirclePainter(
+                                radius: 4,
+                                color: Colors.white,
+                                strokeWidth: 2,
+                                strokeColor: Colors.blue,
+                              );
+                            },
+                          ),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.blue[300]!.withOpacity(0.5),
+                                Colors.blue[700]!.withOpacity(0.0),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Target sleep line (8 hours)
+                        LineChartBarData(
+                          spots: List.generate(spots.length, (i) => FlSpot(i.toDouble(), 8)),
+                          isCurved: false,
+                          color: Colors.green.withOpacity(0.5),
+                          barWidth: 1,
+                          isStrokeCapRound: true,
+                          dotData: FlDotData(show: false),
+                          dashArray: [5, 5],
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildSummaryItem(
-    String label, 
-    String value, 
-    IconData icon, 
-    {Color? color}
-  ) {
-    return Column(
+  // Enhanced irregularities chart with gradients and animations
+  Widget _buildEnhancedIrregularitiesChart(List<SleepRecord> filteredRecords) {
+    if (filteredRecords.isEmpty) {
+      return const Center(
+        child: Text(
+          'No sleep data available for this period',
+          style: TextStyle(color: Colors.white60),
+        ),
+      );
+    }
+
+    // Sort records by date
+    final sortedRecords = _sortRecordsByDate(filteredRecords);
+    
+    // Prepare data points
+    final spots = <FlSpot>[];
+    final dates = <DateTime>[];
+    final irregularities = <int>[];
+    
+    for (var i = 0; i < sortedRecords.length; i++) {
+      final record = sortedRecords[i];
+      spots.add(FlSpot(i.toDouble(), record.irregularities.toDouble()));
+      dates.add(_parseDate(record.date));
+      irregularities.add(record.irregularities);
+    }
+    
+    // Calculate average, min and max values
+    final avgIrregularities = irregularities.isNotEmpty 
+        ? irregularities.reduce((a, b) => a + b) / irregularities.length 
+        : 0.0;
+    final minIrregularities = irregularities.isNotEmpty 
+        ? irregularities.reduce((a, b) => a < b ? a : b) 
+        : 0;
+    final maxIrregularities = irregularities.isNotEmpty 
+        ? irregularities.reduce((a, b) => a > b ? a : b) 
+        : 0;
+    
+    // Determine risk thresholds
+    final lowRiskThreshold = 5;
+    final mediumRiskThreshold = 15;
+    
+    return Container(
+      height: 280,
+      padding: const EdgeInsets.fromLTRB(0, 16, 16, 0),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, bottom: 8.0),
+            child: Text(
+              'Apnea Events per Night',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, bottom: 16.0),
+            child: Row(
+              children: [
+                _buildChartLegendItem('Avg: ${avgIrregularities.toStringAsFixed(1)}', Colors.white),
+                const SizedBox(width: 16),
+                _buildChartLegendItem('Min: $minIrregularities', Colors.green[300]!),
+                const SizedBox(width: 16),
+                _buildChartLegendItem('Max: $maxIrregularities', Colors.red[300]!),
+              ],
+            ),
+          ),
+          Expanded(
+            child: spots.isEmpty 
+                ? const Center(child: Text('No data available', style: TextStyle(color: Colors.white60)))
+                : LineChart(
+                    LineChartData(
+                      lineTouchData: LineTouchData(
+                        touchTooltipData: LineTouchTooltipData(
+                          tooltipBgColor: Colors.blueGrey.shade800.withOpacity(0.8),
+                          getTooltipItems: (List<LineBarSpot> touchedSpots) {
+                            return touchedSpots.map((spot) {
+                              final index = spot.x.toInt();
+                              if (index >= 0 && index < dates.length) {
+                                final dateStr = DateFormat('MMM d').format(dates[index]);
+                                final count = spot.y.toInt();
+                                String riskLevel;
+                                if (count <= lowRiskThreshold) {
+                                  riskLevel = 'Low Risk';
+                                } else if (count <= mediumRiskThreshold) {
+                                  riskLevel = 'Medium Risk';
+                                } else {
+                                  riskLevel = 'High Risk';
+                                }
+                                return LineTooltipItem(
+                                  '$dateStr\n$count events\n$riskLevel',
+                                  const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                );
+                              }
+                              return null;
+                            }).toList();
+                          },
+                        ),
+                        handleBuiltInTouches: true,
+                      ),
+                      gridData: FlGridData(
+                        show: true,
+                        drawVerticalLine: true,
+                        drawHorizontalLine: true,
+                        horizontalInterval: 5,
+                        getDrawingHorizontalLine: (value) {
+                          return FlLine(
+                            color: Colors.white10,
+                            strokeWidth: 1,
+                          );
+                        },
+                        getDrawingVerticalLine: (value) {
+                          return FlLine(
+                            color: Colors.white10,
+                            strokeWidth: 1,
+                          );
+                        },
+                      ),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 30,
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              final index = value.toInt();
+                              if (index >= 0 && index < dates.length && index % 2 == 0) {
+                                return SideTitleWidget(
+                                  axisSide: meta.axisSide,
+                                  child: Text(
+                                    DateFormat('d').format(dates[index]),
+                                    style: const TextStyle(
+                                      color: Colors.white60,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                );
+                              }
+                              return const SizedBox.shrink();
+                            },
+                          ),
+                        ),
+                        leftTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            interval: 5,
+                            getTitlesWidget: (double value, TitleMeta meta) {
+                              return SideTitleWidget(
+                                axisSide: meta.axisSide,
+                                child: Text(
+                                  value.toInt().toString(),
+                                  style: const TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              );
+                            },
+                            reservedSize: 25,
+                          ),
+                        ),
+                        topTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                        rightTitles: AxisTitles(
+                          sideTitles: SideTitles(showTitles: false),
+                        ),
+                      ),
+                      borderData: FlBorderData(
+                        show: false,
+                      ),
+                      minX: 0,
+                      maxX: (spots.length - 1).toDouble(),
+                      minY: 0,
+                      maxY: ((maxIrregularities + 5) / 5).ceil() * 5.0,
+                      lineBarsData: [
+                        LineChartBarData(
+                          spots: spots,
+                          isCurved: true,
+                          curveSmoothness: 0.3,
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.red[700]!,
+                              Colors.red[300]!,
+                            ],
+                          ),
+                          barWidth: 3,
+                          isStrokeCapRound: true,
+                          dotData: FlDotData(
+                            show: true,
+                            getDotPainter: (spot, percent, barData, index) {
+                              // Color based on risk level
+                              Color dotColor;
+                              if (spot.y <= lowRiskThreshold) {
+                                dotColor = Colors.green;
+                              } else if (spot.y <= mediumRiskThreshold) {
+                                dotColor = Colors.orange;
+                              } else {
+                                dotColor = Colors.red;
+                              }
+                              
+                              return FlDotCirclePainter(
+                                radius: 4,
+                                color: Colors.white,
+                                strokeWidth: 2,
+                                strokeColor: dotColor,
+                              );
+                            },
+                          ),
+                          belowBarData: BarAreaData(
+                            show: true,
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.red[300]!.withOpacity(0.5),
+                                Colors.red[700]!.withOpacity(0.0),
+                              ],
+                            ),
+                          ),
+                        ),
+                        // Low risk threshold line
+                        LineChartBarData(
+                          spots: List.generate(spots.length, (i) => FlSpot(i.toDouble(), lowRiskThreshold.toDouble())),
+                          isCurved: false,
+                          color: Colors.green.withOpacity(0.5),
+                          barWidth: 1,
+                          isStrokeCapRound: true,
+                          dotData: FlDotData(show: false),
+                          dashArray: [5, 5],
+                        ),
+                        // Medium risk threshold line
+                        LineChartBarData(
+                          spots: List.generate(spots.length, (i) => FlSpot(i.toDouble(), mediumRiskThreshold.toDouble())),
+                          isCurved: false,
+                          color: Colors.orange.withOpacity(0.5),
+                          barWidth: 1,
+                          isStrokeCapRound: true,
+                          dotData: FlDotData(show: false),
+                          dashArray: [5, 5],
+                        ),
+                      ],
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper widget for chart legends
+  Widget _buildChartLegendItem(String label, Color color) {
+    return Row(
       children: [
-        Icon(icon, color: color ?? AppTheme.primaryColor, size: 28),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: TextStyle(
-            color: color ?? Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
           ),
         ),
+        const SizedBox(width: 4),
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.white70,
             fontSize: 12,
           ),
@@ -442,423 +735,197 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
       ],
     );
   }
-  
-  Widget _buildSectionTitle(String title, {IconData? icon}) {
-    return Row(
-      children: [
-        if (icon != null) ...[
-          Icon(icon, color: AppTheme.primaryColor, size: 20),
-          const SizedBox(width: 8),
-        ],
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildIrregularitiesChart(List<SleepRecord> records, {required bool isWeekly}) {
-    final maxY = records.isEmpty 
-        ? 10.0 
-        : (records.map((r) => r.irregularities).reduce((a, b) => a > b ? a : b) * 1.2)
-            .toDouble()
-            .clamp(10, 100);
-    
-    return Container(
-      height: 220,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: records.isEmpty
-          ? const Center(
-              child: Text(
-                'Not enough data yet',
-                style: TextStyle(color: Colors.white70),
-              ),
-            )
-          : LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: true,
-                  horizontalInterval: maxY / 5,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: Colors.white.withOpacity(0.1),
-                      strokeWidth: 1,
-                    );
-                  },
-                  getDrawingVerticalLine: (value) {
-                    return FlLine(
-                      color: Colors.white.withOpacity(0.1),
-                      strokeWidth: 1,
-                    );
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  bottomTitles: _getBottomTitles(records, isWeekly),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        if (value % (maxY ~/ 5) != 0) return const SizedBox();
-                        return Text(
-                          value.toInt().toString(),
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
-                            fontSize: 12,
-                          ),
-                        );
-                      },
-                      reservedSize: 32,
-                    ),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                minX: 0,
-                maxX: records.length - 1,
-                minY: 0,
-                maxY: maxY.toDouble(),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: List.generate(
-                      records.length,
-                      (i) => FlSpot(i.toDouble(), records[i].irregularities.toDouble()),
-                    ),
-                    isCurved: true,
-                    color: const Color(0xFFFF5677), // Red for irregularities
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: const Color(0xFFFF5677),
-                          strokeWidth: 2,
-                          strokeColor: Colors.white,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFFFF5677).withOpacity(0.4),
-                          const Color(0xFFFF5677).withOpacity(0.0),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                ],
-                lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    tooltipBgColor: const Color(0xFF6A47BB).withOpacity(0.8),
-                    getTooltipItems: (touchedSpots) {
-                      return touchedSpots.map((spot) {
-                        final index = spot.x.toInt();
-                        if (index >= records.length) return null;
-                        final record = records[index];
-                        return LineTooltipItem(
-                          '${record.date}\n${record.irregularities} events',
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      }).toList();
-                    },
-                  ),
-                ),
-              ),
-            ),
-    );
-  }
-
-  Widget _buildDurationChart(List<SleepRecord> records, {required bool isWeekly}) {
-    return Container(
-      height: 220,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: records.isEmpty
-          ? const Center(
-              child: Text(
-                'Not enough data yet',
-                style: TextStyle(color: Colors.white70),
-              ),
-            )
-          : LineChart(
-              LineChartData(
-                gridData: FlGridData(
-                  show: true,
-                  drawVerticalLine: true,
-                  horizontalInterval: 2,
-                  getDrawingHorizontalLine: (value) {
-                    return FlLine(
-                      color: Colors.white.withOpacity(0.1),
-                      strokeWidth: 1,
-                    );
-                  },
-                  getDrawingVerticalLine: (value) {
-                    return FlLine(
-                      color: Colors.white.withOpacity(0.1),
-                      strokeWidth: 1,
-                    );
-                  },
-                ),
-                titlesData: FlTitlesData(
-                  bottomTitles: _getBottomTitles(records, isWeekly),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      getTitlesWidget: (value, meta) {
-                        if (value % 2 != 0) return const SizedBox();
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Text(
-                            '${value.toInt()}h',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.6),
-                              fontSize: 12,
-                            ),
-                          ),
-                        );
-                      },
-                      reservedSize: 32,
-                    ),
-                  ),
-                  rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                  topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                minX: 0,
-                maxX: records.length - 1,
-                minY: 0,
-                maxY: 12,
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: List.generate(
-                      records.length,
-                      (i) => FlSpot(i.toDouble(), records[i].duration),
-                    ),
-                    isCurved: true,
-                    color: const Color(0xFF6A47BB),
-                    barWidth: 3,
-                    isStrokeCapRound: true,
-                    dotData: FlDotData(
-                      show: true,
-                      getDotPainter: (spot, percent, barData, index) {
-                        return FlDotCirclePainter(
-                          radius: 4,
-                          color: const Color(0xFF6A47BB),
-                          strokeWidth: 2,
-                          strokeColor: Colors.white,
-                        );
-                      },
-                    ),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      gradient: LinearGradient(
-                        colors: [
-                          const Color(0xFF6A47BB).withOpacity(0.4),
-                          const Color(0xFF6A47BB).withOpacity(0.0),
-                        ],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                    ),
-                  ),
-                  // Add visual guides for recommended sleep (7-8 hours)
-                  LineChartBarData(
-                    spots: [
-                      FlSpot(0, 7),
-                      FlSpot(records.length - 1, 7),
-                    ],
-                    isCurved: false,
-                    color: Colors.green.withOpacity(0.5),
-                    barWidth: 1,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
-                    dashArray: [3, 3],
-                  ),
-                  LineChartBarData(
-                    spots: [
-                      FlSpot(0, 8),
-                      FlSpot(records.length - 1, 8),
-                    ],
-                    isCurved: false,
-                    color: Colors.green.withOpacity(0.5),
-                    barWidth: 1,
-                    isStrokeCapRound: true,
-                    dotData: const FlDotData(show: false),
-                    dashArray: [3, 3],
-                  ),
-                ],
-                lineTouchData: LineTouchData(
-                  touchTooltipData: LineTouchTooltipData(
-                    tooltipBgColor: const Color(0xFF6A47BB).withOpacity(0.8),
-                    getTooltipItems: (touchedSpots) {
-                      return touchedSpots.map((spot) {
-                        final index = spot.x.toInt();
-                        if (index >= records.length || spot.barIndex != 0) return null;
-                        final record = records[index];
-                        return LineTooltipItem(
-                          '${record.date}\n${record.duration} hours',
-                          const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        );
-                      }).toList();
-                    },
-                  ),
-                ),
-              ),
-            ),
-    );
-  }
 
   Widget _buildSeverityPieChart(List<SleepRecord> records) {
-    // Count severity distribution
-    int lowCount = 0, medCount = 0, highCount = 0;
+    if (records.isEmpty) {
+      return const Center(
+        child: Text(
+          'No sleep data available',
+          style: TextStyle(color: Colors.white60),
+        ),
+      );
+    }
+    
+    // Count severity levels
+    int lowCount = 0, mediumCount = 0, highCount = 0;
     for (final record in records) {
       switch (record.severity.toLowerCase()) {
         case 'low': lowCount++; break;
-        case 'medium': case 'med': medCount++; break;
+        case 'medium': case 'med': mediumCount++; break;
         case 'high': highCount++; break;
       }
     }
     
-    final totalRecords = lowCount + medCount + highCount;
+    final totalCount = lowCount + mediumCount + highCount;
     
-    return SizedBox(
-      height: 240,
-      child: totalRecords == 0
-          ? const Center(
-              child: Text(
-                'Not enough data yet',
-                style: TextStyle(color: Colors.white70),
+    // Calculate percentages
+    final lowPercent = totalCount > 0 ? (lowCount / totalCount * 100).round() : 0;
+    final mediumPercent = totalCount > 0 ? (mediumCount / totalCount * 100).round() : 0;
+    final highPercent = totalCount > 0 ? (highCount / totalCount * 100).round() : 0;
+    
+    // Define pie sections and colors
+    final sections = <PieChartSectionData>[];
+    
+    if (lowCount > 0) {
+      sections.add(
+        PieChartSectionData(
+          color: AppTheme.lowRiskColor,
+          value: lowCount.toDouble(),
+          title: '$lowPercent%',
+          radius: 50,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
+    
+    if (mediumCount > 0) {
+      sections.add(
+        PieChartSectionData(
+          color: AppTheme.mediumRiskColor,
+          value: mediumCount.toDouble(),
+          title: '$mediumPercent%',
+          radius: 50,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
+    
+    if (highCount > 0) {
+      sections.add(
+        PieChartSectionData(
+          color: AppTheme.highRiskColor,
+          value: highCount.toDouble(),
+          title: '$highPercent%',
+          radius: 50,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
+    
+    // If no data, show placeholder
+    if (sections.isEmpty) {
+      sections.add(
+        PieChartSectionData(
+          color: Colors.grey,
+          value: 1,
+          title: 'No Data',
+          radius: 50,
+          titleStyle: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
+      );
+    }
+    
+    return Container(
+      height: 250,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          // Pie chart
+          Expanded(
+            flex: 2,
+            child: PieChart(
+              PieChartData(
+                sections: sections,
+                centerSpaceRadius: 0,
+                sectionsSpace: 2,
+                startDegreeOffset: 180,
               ),
-            )
-          : Row(
+            ),
+          ),
+          // Legend
+          Expanded(
+            flex: 3,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Pie chart
-                Expanded(
-                  flex: 3,
-                  child: PieChart(
-                    PieChartData(
-                      sections: [
-                        if (lowCount > 0)
-                          PieChartSectionData(
-                            value: lowCount.toDouble(),
-                            title: '${((lowCount / totalRecords) * 100).toInt()}%',
-                            color: AppTheme.lowRiskColor,
-                            radius: 80,
-                            titleStyle: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        if (medCount > 0)
-                          PieChartSectionData(
-                            value: medCount.toDouble(),
-                            title: '${((medCount / totalRecords) * 100).toInt()}%',
-                            color: AppTheme.mediumRiskColor,
-                            radius: 80,
-                            titleStyle: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        if (highCount > 0)
-                          PieChartSectionData(
-                            value: highCount.toDouble(),
-                            title: '${((highCount / totalRecords) * 100).toInt()}%',
-                            color: AppTheme.highRiskColor,
-                            radius: 80,
-                            titleStyle: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                      ],
-                      centerSpaceRadius: 0,
-                      sectionsSpace: 2,
-                      startDegreeOffset: 180,
-                    ),
-                  ),
+                _buildPieChartLegendItem(
+                  'Low Risk', 
+                  lowCount, 
+                  AppTheme.lowRiskColor,
+                  'Good sleep quality',
                 ),
-                
-                // Legend
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildSeverityLegendItem('Low', lowCount, AppTheme.lowRiskColor),
-                      const SizedBox(height: 16),
-                      _buildSeverityLegendItem('Medium', medCount, AppTheme.mediumRiskColor),
-                      const SizedBox(height: 16),
-                      _buildSeverityLegendItem('High', highCount, AppTheme.highRiskColor),
-                    ],
-                  ),
+                const SizedBox(height: 16),
+                _buildPieChartLegendItem(
+                  'Medium Risk', 
+                  mediumCount, 
+                  AppTheme.mediumRiskColor,
+                  'Moderate sleep disturbance',
+                ),
+                const SizedBox(height: 16),
+                _buildPieChartLegendItem(
+                  'High Risk', 
+                  highCount, 
+                  AppTheme.highRiskColor,
+                  'Significant sleep disturbance',
                 ),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
-
-  Widget _buildSeverityLegendItem(String label, int count, Color color) {
+  
+  // Helper to build pie chart legend items
+  Widget _buildPieChartLegendItem(String label, int count, Color color, String description) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 16,
+          height: 16,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
           ),
+          margin: const EdgeInsets.only(top: 2),
         ),
         const SizedBox(width: 8),
-        Text(
-          '$label ($count)',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 14,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$label ($count)',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                description,
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -866,141 +933,266 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
   }
 
   Widget _buildMonthlyProgressIndicators(List<SleepRecord> records, Map<String, dynamic> analytics) {
-    if (records.isEmpty) {
-      return _buildEmptyChart();
-    }
-    
-    // Calculate progress metrics based on real data
-    final improvementValue = analytics['improvement'].abs() / 100;
-    final durationGoalProgress = (analytics['avgDuration'] / 8.0).clamp(0.0, 1.0);
-    
-    // Calculate quality score based on severity distribution
-    final totalRecords = analytics['totalCount'].toDouble();
-    final qualityProgress = totalRecords > 0 
-        ? ((analytics['lowCount'] * 1.0 + analytics['mediumCount'] * 0.5) / totalRecords).clamp(0.0, 1.0)
-        : 0.0;
+    final avgIrregularities = analytics['avgIrregularities'] as double;
+    final avgDuration = analytics['avgDuration'] as double;
+    final improvement = analytics['improvement'] as double;
     
     return Column(
       children: [
         _buildProgressIndicator(
-          label: 'Sleep Quality',
-          value: qualityProgress,
-          color: AppTheme.lowRiskColor,
-          description: 'Based on severity distribution',
+          title: 'Sleep Duration',
+          subtitle: 'Average hours of sleep per night',
+          value: avgDuration,
+          maxValue: 10.0,
+          targetValue: 8.0,
+          valueFormat: '${avgDuration.toStringAsFixed(1)} hrs',
+          targetLabel: 'Target: 8 hrs',
+          color: AppTheme.primaryColor,
+          icon: Icons.nightlight_round,
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         _buildProgressIndicator(
-          label: analytics['trend'] == 'improving' ? 'Apnea Events Reduction' : 'Apnea Events Change',
-          value: improvementValue.clamp(0.0, 1.0),
-          color: analytics['trend'] == 'improving' ? AppTheme.primaryColor : AppTheme.highRiskColor,
-          description: 'Comparing first and last records',
+          title: 'Apnea Events',
+          subtitle: 'Average number of irregularities per night',
+          value: avgIrregularities,
+          maxValue: 30.0,
+          targetValue: 5.0,
+          valueFormat: avgIrregularities.toStringAsFixed(1),
+          targetLabel: 'Target: <5',
+          color: avgIrregularities <= 5 ? Colors.green : 
+                  avgIrregularities <= 15 ? AppTheme.mediumRiskColor : 
+                  AppTheme.highRiskColor,
+          icon: Icons.waves,
+          inverseProgress: true, // Lower is better
         ),
-        const SizedBox(height: 20),
-        _buildProgressIndicator(
-          label: 'Sleep Duration Goal (8h)',
-          value: durationGoalProgress,
-          color: AppTheme.mediumRiskColor,
-          description: 'Current: ${analytics['avgDuration'].toStringAsFixed(1)}h / 8h target',
+        const SizedBox(height: 16),
+        _buildTrendIndicator(
+          improvement: improvement,
+          records: records,
         ),
       ],
     );
   }
-
+  
+  // Helper to build progress indicators
   Widget _buildProgressIndicator({
-    required String label,
+    required String title,
+    required String subtitle,
     required double value,
+    required double maxValue,
+    required double targetValue,
+    required String valueFormat,
+    required String targetLabel,
     required Color color,
-    String? description,
+    required IconData icon,
+    bool inverseProgress = false,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
+    // Calculate progress
+    double progress = (value / maxValue).clamp(0.0, 1.0);
+    if (inverseProgress) {
+      progress = 1.0 - progress;
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: color,
+                size: 18,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                valueFormat,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(
+              color: Colors.white60,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Stack(
+            children: [
+              // Background
+              Container(
+                height: 8,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              // Progress
+              Container(
+                height: 8,
+                width: MediaQuery.of(context).size.width * 0.7 * progress,
+                decoration: BoxDecoration(
+                  color: color,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              // Target indicator
+              if (!inverseProgress)
+                Positioned(
+                  left: (targetValue / maxValue) * MediaQuery.of(context).size.width * 0.7,
+                  child: Container(
+                    height: 8,
+                    width: 2,
+                    color: Colors.white,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                inverseProgress ? 'High' : '0',
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 10,
+                ),
+              ),
+              Text(
+                targetLabel,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                ),
+              ),
+              Text(
+                inverseProgress ? '0' : 'Max',
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 10,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
+  // Helper to build trend indicator
+  Widget _buildTrendIndicator({
+    required double improvement,
+    required List<SleepRecord> records,
+  }) {
+    // Set trend info
+    IconData trendIcon;
+    Color trendColor;
+    String trendText;
+    String description;
+    
+    if (improvement > 10) {
+      trendIcon = Icons.trending_down;
+      trendColor = Colors.green;
+      trendText = 'Significant Improvement';
+      description = 'Your sleep apnea patterns are showing notable improvement. Keep up with your current habits.';
+    } else if (improvement > 0) {
+      trendIcon = Icons.trending_down;
+      trendColor = Colors.green;
+      trendText = 'Slight Improvement';
+      description = 'Your sleep patterns are gradually improving. Continue monitoring and following recommendations.';
+    } else if (improvement < -10) {
+      trendIcon = Icons.trending_up;
+      trendColor = Colors.red;
+      trendText = 'Significant Decline';
+      description = 'Your sleep patterns have worsened considerably. Consider consulting with a healthcare professional.';
+    } else if (improvement < 0) {
+      trendIcon = Icons.trending_up;
+      trendColor = Colors.orange;
+      trendText = 'Slight Decline';
+      description = 'Your sleep patterns show a slight worsening. Review and adjust your sleep habits.';
+    } else {
+      trendIcon = Icons.trending_flat;
+      trendColor = Colors.amber;
+      trendText = 'Stable Pattern';
+      description = 'Your sleep patterns remain consistent. Continue monitoring for any changes.';
+    }
+    
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: trendColor.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              trendIcon,
+              color: trendColor,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  label,
+                  trendText,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: trendColor,
                     fontSize: 16,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (description != null)
-                  Text(
-                    description,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
-                      fontSize: 12,
-                    ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
                   ),
+                ),
               ],
             ),
-            Text(
-              '${(value * 100).toInt()}%',
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Container(
-          height: 10,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.2),
-                blurRadius: 2,
-                offset: const Offset(0, 1),
-              ),
-            ],
           ),
-          child: Stack(
-            children: [
-              // Background gradient to show the "goal" range
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.red.withOpacity(0.2),
-                      Colors.amber.withOpacity(0.2),
-                      Colors.green.withOpacity(0.2),
-                    ],
-                    stops: const [0.3, 0.7, 1.0],
-                  ),
-                  borderRadius: BorderRadius.circular(5),
-                ),
-              ),
-              // Current progress
-              FractionallySizedBox(
-                widthFactor: value,
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(5),
-                    boxShadow: [
-                      BoxShadow(
-                        color: color.withOpacity(0.5),
-                        blurRadius: 6,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -1034,16 +1226,16 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
           }
           
           final record = records[index];
-          final dateParts = record.date.split(', ')[0].split(' ');
+          final date = _parseDate(record.date);
           
-          // Change this to include both month and day for more meaningful labels
+          // Format date based on view type
           final String label;
           if (isWeekly) {
             // For weekly view: "Apr 2" format
-            label = dateParts.length > 1 ? "${dateParts[0]} ${dateParts[1]}" : dateParts[0];
+            label = DateFormat('MMM d').format(date);
           } else {
-            // For monthly view: "2" (just day) to save space, or full "Apr 2" if space permits
-            label = dateParts.length > 1 ? dateParts[1] : dateParts[0];
+            // For monthly view: just day to save space
+            label = DateFormat('d').format(date);
           }
           
           return Padding(
@@ -1069,82 +1261,80 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Chart Filters',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Chart Filters',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 16),
-                  _buildFilterSwitch(
-                    'Apnea Events Pattern',
-                    _showIrregularities,
-                    (value) {
-                      setModalState(() => _showIrregularities = value);
-                      setState(() => _showIrregularities = value);
-                    },
-                    icon: Icons.multiline_chart,
-                  ),
-                  _buildFilterSwitch(
-                    'Sleep Duration',
-                    _showDuration,
-                    (value) {
-                      setModalState(() => _showDuration = value);
-                      setState(() => _showDuration = value);
-                    },
-                    icon: Icons.bedtime_outlined,
-                  ),
-                  _buildFilterSwitch(
-                    'Severity Distribution',
-                    _showSeverity,
-                    (value) {
-                      setModalState(() => _showSeverity = value);
-                      setState(() => _showSeverity = value);
-                    },
-                    icon: Icons.pie_chart,
-                  ),
-                  _buildFilterSwitch(
-                    'Recommendations & Analysis',
-                    _showRecommendations,
-                    (value) {
-                      setModalState(() => _showRecommendations = value);
-                      setState(() => _showRecommendations = value);
-                    },
-                    icon: Icons.lightbulb_outline,
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.pop(context),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                ),
+                const SizedBox(height: 16),
+                _buildFilterSwitch(
+                  'Apnea Events Pattern',
+                  _showIrregularities,
+                  (value) {
+                    setModalState(() => _showIrregularities = value);
+                    setState(() => _showIrregularities = value);
+                  },
+                  icon: Icons.multiline_chart,
+                ),
+                _buildFilterSwitch(
+                  'Sleep Duration',
+                  _showDuration,
+                  (value) {
+                    setModalState(() => _showDuration = value);
+                    setState(() => _showDuration = value);
+                  },
+                  icon: Icons.bedtime_outlined,
+                ),
+                _buildFilterSwitch(
+                  'Severity Distribution',
+                  _showSeverity,
+                  (value) {
+                    setModalState(() => _showSeverity = value);
+                    setState(() => _showSeverity = value);
+                  },
+                  icon: Icons.pie_chart,
+                ),
+                _buildFilterSwitch(
+                  'Recommendations & Analysis',
+                  _showRecommendations,
+                  (value) {
+                    setModalState(() => _showRecommendations = value);
+                    setState(() => _showRecommendations = value);
+                  },
+                  icon: Icons.lightbulb_outline,
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Text('Apply'),
                     ),
+                    child: const Text('Apply'),
                   ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -1184,1292 +1374,614 @@ class _TrendsScreenState extends State<TrendsScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildEnhancedSummaryCard(List<SleepRecord> records, Map<String, dynamic> analytics, String timeFrame) {
-    // Extract analytics data
-    final avgIrregularities = analytics['avgIrregularities'];
-    final avgDuration = analytics['avgDuration'];
-    final trend = analytics['trend'];
-    final improvement = analytics['improvement'];
-    
-    return Card(
-      color: AppTheme.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '$timeFrame Summary',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                _buildTrendIndicator(trend, improvement),
-              ],
-            ),
-            const Divider(color: Colors.white24),
-            const SizedBox(height: 8),
-            
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildSummaryItem(
-                  'Avg. Events', 
-                  avgIrregularities.toStringAsFixed(1),
-                  Icons.error_outline,
-                  color: _getSeverityColorForValue(avgIrregularities),
-                ),
-                _buildSummaryItem(
-                  'Avg. Sleep', 
-                  '${avgDuration.toStringAsFixed(1)}h',
-                  Icons.bedtime_outlined,
-                  color: _getColorForSleepDuration(avgDuration),
-                ),
-                _buildSummaryItem(
-                  'Most Common', 
-                  _getMostCommonSeverity(
-                    analytics['lowCount'], 
-                    analytics['mediumCount'], 
-                    analytics['highCount']
-                  ),
-                  Icons.analytics_outlined,
-                  color: _getColorForSeverity(_getMostCommonSeverity(
-                    analytics['lowCount'], 
-                    analytics['mediumCount'], 
-                    analytics['highCount']
-                  )),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Widget _buildTrendIndicator(String trend, double improvement) {
-    IconData icon;
-    Color color;
-    String label;
-    
-    switch (trend) {
-      case 'improving':
-        icon = Icons.trending_up;
-        color = Colors.green;
-        label = '${improvement.abs().toStringAsFixed(1)}% better';
-        break;
-      case 'deteriorating':
-        icon = Icons.trending_down;
-        color = Colors.red;
-        label = '${improvement.abs().toStringAsFixed(1)}% worse';
-        break;
-      default:
-        icon = Icons.trending_flat;
-        color = Colors.grey;
-        label = 'Stable';
-    }
-    
-    return Row(
-      children: [
-        Icon(icon, color: color, size: 18),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text('Sleep Trends'),
+        backgroundColor: Colors.black,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            onPressed: _showFilterOptions,
           ),
-        ),
-      ],
-    );
-  }
-  
-  Color _getSeverityColorForValue(double irregularities) {
-    if (irregularities < 5) return AppTheme.lowRiskColor;
-    if (irregularities < 20) return AppTheme.mediumRiskColor;
-    return AppTheme.highRiskColor;
-  }
-  
-  Color _getColorForSleepDuration(double duration) {
-    if (duration < 6) return AppTheme.highRiskColor;
-    if (duration < 7) return AppTheme.mediumRiskColor;
-    return AppTheme.lowRiskColor;
-  }
-  
-  Color _getColorForSeverity(String severity) {
-    switch (severity.toLowerCase()) {
-      case 'low': return AppTheme.lowRiskColor;
-      case 'medium': case 'med': return AppTheme.mediumRiskColor;
-      case 'high': return AppTheme.highRiskColor;
-      default: return Colors.grey;
-    }
-  }
-
-  Widget _buildInsightsView(List<SleepRecord> allRecords) {
-    // Create summary data for insights
-    final weekdayData = _analyzeWeekdayPatterns(allRecords);
-    final timeData = _analyzeTimePatterns(allRecords);
-    final longTermTrend = _analyzeLongTermTrend(allRecords);
-    
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildInsightCard(
-            title: 'Sleep Apnea Severity Trend',
-            icon: Icons.show_chart,
-            content: _buildSeverityTrendInsight(allRecords, longTermTrend),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshData,
           ),
-          const SizedBox(height: 20),
-          
-          _buildInsightCard(
-            title: 'Best/Worst Days',
-            icon: Icons.calendar_today,
-            content: _buildWeekdayInsight(weekdayData),
-          ),
-          const SizedBox(height: 20),
-          
-          _buildInsightCard(
-            title: 'Sleep Duration Analysis',
-            icon: Icons.access_time,
-            content: _buildDurationInsight(allRecords),
-          ),
-          const SizedBox(height: 20),
-          
-          _buildInsightCard(
-            title: 'Sleep Health Score',
-            icon: Icons.favorite,
-            content: _buildSleepScoreInsight(allRecords, longTermTrend),
-          ),
-          const SizedBox(height: 40),
         ],
       ),
-    );
-  }
-  
-  Widget _buildInsightCard({
-    required String title,
-    required IconData icon,
-    required Widget content,
-  }) {
-    return Card(
-      color: AppTheme.cardColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: AppTheme.primaryColor),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+      body: Stack(
+        children: [
+          // Background gradient
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFF4A2B82).withOpacity(0.5),
+                    Colors.black.withOpacity(0.2),
+                  ],
+                  center: Alignment.topCenter,
+                  radius: 0.9,
+                ),
+              ),
+            ),
+          ),
+          
+          // Content
+          Column(
+            children: [
+              // Tab bar
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  border: Border(
+                    bottom: BorderSide(
+                      color: Colors.white.withOpacity(0.1),
+                      width: 1,
+                    ),
                   ),
                 ),
-              ],
-            ),
-            const Divider(color: Colors.white24),
-            const SizedBox(height: 8),
-            content,
-          ],
-        ),
-      ),
-    );
-  }
-  
-  Map<String, dynamic> _analyzeWeekdayPatterns(List<SleepRecord> records) {
-    // This would analyze which days of the week have the most/least irregularities
-    // For demo, we'll return mock data
-    return {
-      'bestDay': 'Saturday',
-      'worstDay': 'Monday',
-      'data': [
-        {'day': 'Mon', 'value': 15.0},
-        {'day': 'Tue', 'value': 12.0},
-        {'day': 'Wed', 'value': 10.0},
-        {'day': 'Thu', 'value': 11.0},
-        {'day': 'Fri', 'value': 8.0},
-        {'day': 'Sat', 'value': 5.0},
-        {'day': 'Sun', 'value': 9.0},
-      ],
-    };
-  }
-  
-  Map<String, dynamic> _analyzeTimePatterns(List<SleepRecord> records) {
-    // This would analyze time patterns (not implemented in demo)
-    return {};
-  }
-  
-  Map<String, dynamic> _analyzeLongTermTrend(List<SleepRecord> records) {
-    if (records.isEmpty) {
-      return {'trend': 'neutral', 'improvement': 0.0};
-    }
-    
-    // In a real app, we'd do more sophisticated trend analysis
-    // For this demo, we'll calculate a simple trend
-    
-    // Sort records by date (oldest to newest)
-    final sortedRecords = List<SleepRecord>.from(records);
-    sortedRecords.sort((a, b) => a.date.compareTo(b.date));
-    
-    if (sortedRecords.length < 4) {
-      return {'trend': 'neutral', 'improvement': 0.0};
-    }
-    
-    final firstQuarter = sortedRecords.sublist(0, sortedRecords.length ~/ 4);
-    final lastQuarter = sortedRecords.sublist(3 * sortedRecords.length ~/ 4);
-    
-    final firstAvg = firstQuarter.map((r) => r.irregularities).reduce((a, b) => a + b) / firstQuarter.length;
-    final lastAvg = lastQuarter.map((r) => r.irregularities).reduce((a, b) => a + b) / lastQuarter.length;
-    
-    double improvement = 0.0;
-    String trend = 'neutral';
-    
-    // Calculate improvement percentage (negative means improvement, fewer irregularities)
-    if (firstAvg > 0) {
-      improvement = (lastAvg - firstAvg) / firstAvg * -100;
-    }
-    
-    if (improvement > 10) trend = 'improving';
-    else if (improvement < -10) trend = 'deteriorating';
-    
-    return {
-      'trend': trend,
-      'improvement': improvement,
-      'firstPeriodAvg': firstAvg,
-      'lastPeriodAvg': lastAvg,
-    };
-  }
-
-  Widget _buildSeverityTrendInsight(List<SleepRecord> records, Map<String, dynamic> trendData) {
-    if (records.isEmpty) {
-      return const Center(
-        child: Text(
-          'Not enough data yet',
-          style: TextStyle(color: Colors.white70),
-        ),
-      );
-    }
-    
-    final trend = trendData['trend'];
-    final improvement = trendData['improvement'];
-    
-    // Build message based on trend
-    String message;
-    Color messageColor;
-    
-    switch (trend) {
-      case 'improving':
-        message = 'Your sleep apnea symptoms have improved by approximately ${improvement.abs().toStringAsFixed(0)}% over time. Keep up the good work!';
-        messageColor = Colors.green;
-        break;
-      case 'deteriorating':
-        message = 'Your sleep apnea symptoms have worsened by approximately ${improvement.abs().toStringAsFixed(0)}% over time. Consider consulting with a healthcare provider.';
-        messageColor = Colors.redAccent;
-        break;
-      default:
-        message = 'Your sleep apnea symptoms have remained relatively stable over time.';
-        messageColor = Colors.white70;
-    }
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          message,
-          style: TextStyle(color: messageColor, fontSize: 16),
-        ),
-        const SizedBox(height: 20),
-        
-        // Simple visualization of before/after
-        if (trend != 'neutral') ...[
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      'First Period Avg',
-                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          color: _getSeverityColorForValue(trendData['firstPeriodAvg']),
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          trendData['firstPeriodAvg'].toStringAsFixed(1),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+                child: TabBar(
+                  controller: _tabController,
+                  indicatorColor: AppTheme.primaryColor,
+                  indicatorWeight: 3,
+                  tabs: const [
+                    Tab(text: 'Weekly'),
+                    Tab(text: 'Monthly'),
+                    Tab(text: 'Insights'),
                   ],
                 ),
               ),
-              Icon(
-                trend == 'improving' ? Icons.arrow_forward : Icons.arrow_forward,
-                color: Colors.white30,
-              ),
+              
+              // Tab views
               Expanded(
-                child: Column(
+                child: TabBarView(
+                  controller: _tabController,
                   children: [
-                    Text(
-                      'Recent Period Avg',
-                      style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          color: _getSeverityColorForValue(trendData['lastPeriodAvg']),
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          trendData['lastPeriodAvg'].toStringAsFixed(1),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
+                    _buildWeeklyTrendsView(),
+                    _buildMonthlyTrendsView(),
+                    _buildInsightsView(),
                   ],
                 ),
               ),
             ],
           ),
         ],
-      ],
-    );
-  }
-  
-  Widget _buildWeekdayInsight(Map<String, dynamic> weekdayData) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildDayQualityIndicator(
-              'Best Day',
-              weekdayData['bestDay'],
-              Colors.green,
-              Icons.thumb_up_outlined,
-            ),
-            _buildDayQualityIndicator(
-              'Worst Day',
-              weekdayData['worstDay'],
-              Colors.redAccent,
-              Icons.thumb_down_outlined,
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        
-        // Weekday chart
-        Container(
-          height: 180,
-          padding: const EdgeInsets.only(top: 16),
-          child: BarChart(
-            BarChartData(
-              alignment: BarChartAlignment.center,
-              barGroups: _createWeekdayBarGroups(weekdayData['data']),
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                getDrawingHorizontalLine: (value) {
-                  return FlLine(
-                    color: Colors.white.withOpacity(0.1),
-                    strokeWidth: 1,
-                  );
-                },
-              ),
-              titlesData: FlTitlesData(
-                show: true,
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (value, meta) {
-                      final weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                      if (value >= 0 && value < weekdays.length) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: Text(
-                            weekdays[value.toInt()],
-                            style: const TextStyle(
-                              color: Colors.white54,
-                              fontSize: 12,
-                            ),
-                          ),
-                        );
-                      }
-                      return const SizedBox();
-                    },
-                    reservedSize: 30,
-                  ),
-                ),
-                leftTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                rightTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                topTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-              ),
-              borderData: FlBorderData(show: false),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-  
-  List<BarChartGroupData> _createWeekdayBarGroups(List<dynamic> data) {
-    return List.generate(data.length, (index) {
-      final item = data[index];
-      return BarChartGroupData(
-        x: index,
-        barRods: [
-          BarChartRodData(
-            toY: item['value'],
-            color: _getSeverityColorForValue(item['value']),
-            width: 16,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(4),
-              topRight: Radius.circular(4),
-            ),
-          ),
-        ],
-      );
-    });
-  }
-  
-  Widget _buildDayQualityIndicator(String label, String day, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 4),
-          Text(
-            day,
-            style: TextStyle(
-              color: color,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
       ),
     );
   }
-  
-  Widget _buildDurationInsight(List<SleepRecord> records) {
-    if (records.isEmpty) {
-      return const Center(
-        child: Text(
-          'Not enough data yet',
-          style: TextStyle(color: Colors.white70),
-        ),
-      );
-    }
-    
-    // Calculate average duration
-    final avgDuration = records.map((r) => r.duration).reduce((a, b) => a + b) / records.length;
-    
-    // Determine if the average duration is good
-    final isGoodDuration = avgDuration >= 7.0;
-    final isOkDuration = avgDuration >= 6.0 && avgDuration < 7.0;
-    
-    String message;
-    Color messageColor;
-    
-    if (isGoodDuration) {
-      message = 'Your average sleep duration of ${avgDuration.toStringAsFixed(1)} hours is good. Consistent 7-8 hours of sleep helps reduce sleep apnea symptoms.';
-      messageColor = Colors.green;
-    } else if (isOkDuration) {
-      message = 'Your average sleep duration of ${avgDuration.toStringAsFixed(1)} hours is acceptable but could be improved. Aim for 7-8 hours for better sleep health.';
-      messageColor = Colors.amber;
-    } else {
-      message = 'Your average sleep duration of ${avgDuration.toStringAsFixed(1)} hours is below recommended levels. Try to get 7-8 hours of sleep for better management of sleep apnea.';
-      messageColor = Colors.redAccent;
-    }
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          message,
-          style: TextStyle(color: messageColor, fontSize: 16),
-        ),
-        const SizedBox(height: 20),
-        
-        // Visualization of ideal sleep range
-        Stack(
-          children: [
-            // Background scale
-            Container(
-              height: 20,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Colors.red,
-                    Colors.amber,
-                    Colors.green,
-                    Colors.amber,
-                    Colors.red,
-                  ],
-                  stops: [0.0, 0.2, 0.4, 0.6, 1.0],
-                ),
-                borderRadius: BorderRadius.circular(10),
+
+  // Weekly trends view
+  Widget _buildWeeklyTrendsView() {
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      color: AppTheme.primaryColor,
+      child: _weeklyRecords.isEmpty
+          ? const Center(
+              child: Text(
+                'No weekly sleep data available',
+                style: TextStyle(color: Colors.white60),
               ),
-            ),
-            
-            // Markers for hours
-            SizedBox(
-              height: 30,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('<5h', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
-                  Text('6h', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
-                  Text('7h', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
-                  Text('8h', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
-                  Text('9h+', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                  const Text(
+                    'Weekly Sleep Trends',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Based on the last ${_weeklyRecords.length} sleep records',
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  if (_showIrregularities) ...[
+                    const Text(
+                      'Apnea Events Trend',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildEnhancedIrregularitiesChart(_weeklyRecords),
+                    const SizedBox(height: 24),
+                  ],
+                  if (_showDuration) ...[
+                    const Text(
+                      'Sleep Duration Trend',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildEnhancedDurationChart(_weeklyRecords),
+                    const SizedBox(height: 24),
+                  ],
+                  if (_showSeverity) ...[
+                    const Text(
+                      'Sleep Quality Distribution',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildSeverityPieChart(_weeklyRecords),
+                    const SizedBox(height: 24),
+                  ],
                 ],
               ),
             ),
-            
-            // Current position indicator
-            Positioned(
-              left: ((avgDuration.clamp(4.0, 10.0) - 4.0) / 6.0 * 100).clamp(0.0, 100.0) * 0.01 * MediaQuery.of(context).size.width * 0.85,
-              child: Container(
-                margin: const EdgeInsets.only(top: 5),
-                child: Icon(
-                  Icons.arrow_drop_down,
-                  color: Colors.white,
-                  size: 30,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-  
-  Widget _buildSleepScoreInsight(List<SleepRecord> records, Map<String, dynamic> trendData) {
-    if (records.isEmpty) {
-      return const Center(
-        child: Text(
-          'Not enough data yet',
-          style: TextStyle(color: Colors.white70),
-        ),
-      );
-    }
-    
-    // Calculate sleep score (0-100) based on various factors
-    // In a real app, this would be a more complex algorithm
-    final avgIrregularities = records.map((r) => r.irregularities).reduce((a, b) => a + b) / records.length;
-    final avgDuration = records.map((r) => r.duration).reduce((a, b) => a + b) / records.length;
-    
-    // Count severity distribution
-    int lowCount = 0, medCount = 0, highCount = 0;
-    for (final record in records) {
-      switch (record.severity.toLowerCase()) {
-        case 'low': lowCount++; break;
-        case 'medium': case 'med': medCount++; break;
-        case 'high': highCount++; break;
-      }
-    }
-    
-    // Calculate approximate score components
-    final durationScore = ((avgDuration.clamp(4.0, 9.0) - 4.0) / 5.0 * 100).clamp(0.0, 100.0) * 0.4;
-    final irregularitiesScore = (100 - (avgIrregularities.clamp(0.0, 30.0) / 30.0 * 100)).clamp(0.0, 100.0) * 0.4;
-    
-    // Quality score based on severity distribution
-    final totalRecords = (lowCount + medCount + highCount).toDouble();
-    final qualityScore = totalRecords > 0 
-        ? ((lowCount * 100 + medCount * 50) / totalRecords).clamp(0.0, 100.0) * 0.2
-        : 0.0;
-    
-    final overallScore = (durationScore + irregularitiesScore + qualityScore).round();
-    
-    // Determine score category and message
-    String category;
-    Color categoryColor;
-    String message;
-    
-    if (overallScore >= 80) {
-      category = 'Excellent';
-      categoryColor = Colors.green;
-      message = 'Your sleep health is excellent! Keep maintaining your current sleep habits.';
-    } else if (overallScore >= 60) {
-      category = 'Good';
-      categoryColor = Colors.lightGreen;
-      message = 'Your sleep health is good. Small improvements could help you reach excellent status.';
-    } else if (overallScore >= 40) {
-      category = 'Fair';
-      categoryColor = Colors.amber;
-      message = 'Your sleep health is fair. Consider the recommended actions to improve.';
-    } else {
-      category = 'Needs Improvement';
-      categoryColor = Colors.redAccent;
-      message = 'Your sleep health needs improvement. Consider consulting a healthcare provider.';
-    }
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Your Sleep Health Score',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.7),
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  category,
-                  style: TextStyle(
-                    color: categoryColor,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
-                border: Border.all(
-                  color: categoryColor,
-                  width: 3,
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  overallScore.toString(),
-                  style: TextStyle(
-                    color: categoryColor,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Text(
-          message,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-          ),
-        ),
-      ],
     );
   }
 
-  Widget _buildSleepPatternAnalysis(List<SleepRecord> records, Map<String, dynamic> analytics) {
-    if (records.isEmpty) {
-      return _buildEmptyChart();
-    }
-    
-    // Determine if there's a correlation between sleep duration and irregularities
-    bool durationAffectsIrregularities = false;
-    String correlationMessage = '';
-    
-    if (records.length >= 3) {
-      // Group records by duration ranges and calculate average irregularities
-      final shortSleepRecords = records.where((r) => r.duration < 6.5).toList();
-      final longSleepRecords = records.where((r) => r.duration >= 6.5).toList();
-      
-      if (shortSleepRecords.isNotEmpty && longSleepRecords.isNotEmpty) {
-        final shortSleepAvg = shortSleepRecords.map((r) => r.irregularities).reduce((a, b) => a + b) / 
-            shortSleepRecords.length;
-        final longSleepAvg = longSleepRecords.map((r) => r.irregularities).reduce((a, b) => a + b) / 
-            longSleepRecords.length;
-        
-        final difference = (shortSleepAvg - longSleepAvg).abs();
-        
-        if (difference > 3) {
-          durationAffectsIrregularities = true;
-          if (shortSleepAvg > longSleepAvg) {
-            correlationMessage = 'Your data suggests that longer sleep duration (≥6.5 hours) tends to result in fewer apnea events.';
-          } else {
-            correlationMessage = 'Your data shows an unusual pattern where shorter sleep duration is associated with fewer apnea events.';
-          }
-        }
-      }
-    }
-    
-    if (!durationAffectsIrregularities) {
-      correlationMessage = 'No clear pattern detected between sleep duration and apnea events. Continue monitoring for more insights.';
-    }
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            correlationMessage,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          // Add key findings
-          const Text(
-            'Key Findings:',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          
-          _buildFindingItem(
-            'Average of ${analytics['avgIrregularities'].toStringAsFixed(1)} apnea events detected per session',
-            icon: Icons.error_outline,
-            color: _getSeverityColorForValue(analytics['avgIrregularities']),
-          ),
-          _buildFindingItem(
-            'Average sleep duration: ${analytics['avgDuration'].toStringAsFixed(1)} hours',
-            icon: Icons.bedtime_outlined,
-            color: _getColorForSleepDuration(analytics['avgDuration']),
-          ),
-          _buildFindingItem(
-            'Most common severity: ${_getMostCommonSeverity(
-               analytics['lowCount'], 
-               analytics['mediumCount'], 
-               analytics['highCount']
-             )}',
-            icon: Icons.analytics_outlined,
-            color: _getColorForSeverity(_getMostCommonSeverity(
-              analytics['lowCount'], 
-              analytics['mediumCount'], 
-              analytics['highCount']
-            )),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildFindingItem(String text, {required IconData icon, required Color color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(color: Colors.white.withOpacity(0.9)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecommendations(Map<String, dynamic> analytics) {
-    final recommendations = analytics['recommendedActions'] as List<String>;
-    
-    if (recommendations.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: Colors.white.withOpacity(0.1),
-            width: 1,
-          ),
-        ),
-        child: const Center(
-          child: Text(
-            'Continue your current sleep monitoring routine',
-            style: TextStyle(color: Colors.white70),
-          ),
-        ),
-      );
-    }
-    
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Based on your data, consider:',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-          const SizedBox(height: 16),
-          
-          ...recommendations.map((rec) => _buildRecommendationItem(rec)).toList(),
-          
-          const SizedBox(height: 16),
-          const Text(
-            'Disclaimer: These recommendations are based on your recorded data and are not a substitute for professional medical advice.',
-            style: TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildRecommendationItem(String text) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.lightbulb_outline,
-            color: AppTheme.primaryColor,
-            size: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
+  // Monthly trends view
+  Widget _buildMonthlyTrendsView() {
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      color: AppTheme.primaryColor,
+      child: _monthlyRecords.isEmpty
+          ? const Center(
+              child: Text(
+                'No monthly sleep data available',
+                style: TextStyle(color: Colors.white60),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyChart() {
-    return Container(
-      height: 220,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: const Center(
-        child: Text(
-          'Not enough data yet',
-          style: TextStyle(color: Colors.white70),
-        ),
-      ),
-    );
-  }
-
-  // Add the missing chart methods
-  Widget _buildEnhancedIrregularitiesChart(List<SleepRecord> records, {required bool isWeekly}) {
-    if (records.isEmpty) {
-      return _buildEmptyChart();
-    }
-    
-    final maxY = records.isEmpty 
-        ? 10.0 
-        : (records.map((r) => r.irregularities).reduce((a, b) => a > b ? a : b) * 1.2)
-            .toDouble()
-            .clamp(10, 100);
-    
-    return Container(
-      height: 220,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: true,
-            horizontalInterval: maxY / 5,
-            getDrawingHorizontalLine: (value) {
-              return FlLine(
-                color: Colors.white.withOpacity(0.1),
-                strokeWidth: 1,
-              );
-            },
-            getDrawingVerticalLine: (value) {
-              return FlLine(
-                color: Colors.white.withOpacity(0.1),
-                strokeWidth: 1,
-              );
-            },
-          ),
-          titlesData: FlTitlesData(
-            bottomTitles: _getBottomTitles(records, isWeekly), // Use the improved labels
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  if (value % (maxY ~/ 5) != 0) return const SizedBox();
-                  return Text(
-                    value.toInt().toString(),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Monthly Sleep Trends',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
-                      fontSize: 12,
-                    ),
-                  );
-                },
-                reservedSize: 32,
-              ),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-          ),
-          borderData: FlBorderData(show: false),
-          minX: 0,
-          maxX: records.length - 1,
-          minY: 0,
-          maxY: maxY.toDouble(),
-          lineBarsData: [
-            LineChartBarData(
-              spots: List.generate(
-                records.length,
-                (i) => FlSpot(i.toDouble(), records[i].irregularities.toDouble()),
-              ),
-              isCurved: true,
-              color: const Color(0xFFFF5677), // Red for irregularities
-              barWidth: 3,
-              isStrokeCapRound: true,
-              dotData: FlDotData(
-                show: true,
-                getDotPainter: (spot, percent, barData, index) {
-                  return FlDotCirclePainter(
-                    radius: 4,
-                    color: const Color(0xFFFF5677),
-                    strokeWidth: 2,
-                    strokeColor: Colors.white,
-                  );
-                },
-              ),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFFFF5677).withOpacity(0.4),
-                    const Color(0xFFFF5677).withOpacity(0.0),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-            // Add a trend line based on moving average
-            LineChartBarData(
-              spots: _calculateTrendLine(records),
-              isCurved: true,
-              color: Colors.white.withOpacity(0.7),
-              barWidth: 2,
-              isStrokeCapRound: true,
-              dotData: const FlDotData(show: false),
-              dashArray: [5, 5],
-            ),
-          ],
-          lineTouchData: LineTouchData(
-            touchTooltipData: LineTouchTooltipData(
-              tooltipBgColor: const Color(0xFF6A47BB).withOpacity(0.8),
-              getTooltipItems: (touchedSpots) {
-                return touchedSpots.map((spot) {
-                  final index = spot.x.toInt();
-                  if (index >= records.length || spot.barIndex != 0) return null;
-                  final record = records[index];
-                  return LineTooltipItem(
-                    '${record.date}\n${record.irregularities} events',
-                    const TextStyle(
                       color: Colors.white,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
-                  );
-                }).toList();
-              },
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  List<FlSpot> _calculateTrendLine(List<SleepRecord> records) {
-    if (records.length < 3) {
-      return [];
-    }
-    
-    // Simple moving average for trend line
-    const windowSize = 3;
-    List<FlSpot> trendSpots = [];
-    
-    for (int i = 0; i < records.length; i++) {
-      if (i >= windowSize - 1) {
-        double sum = 0;
-        for (int j = 0; j < windowSize; j++) {
-          sum += records[i - j].irregularities;
-        }
-        double avg = sum / windowSize;
-        trendSpots.add(FlSpot(i.toDouble(), avg));
-      }
-    }
-    
-    return trendSpots;
-  }
-
-  Widget _buildEnhancedDurationChart(List<SleepRecord> records, {required bool isWeekly}) {
-    if (records.isEmpty) {
-      return _buildEmptyChart();
-    }
-    
-    return Container(
-      height: 220,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.white.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: LineChart(
-        LineChartData(
-          gridData: FlGridData(
-            show: true,
-            drawVerticalLine: true,
-            horizontalInterval: 2,
-            getDrawingHorizontalLine: (value) {
-              return FlLine(
-                color: Colors.white.withOpacity(0.1),
-                strokeWidth: 1,
-              );
-            },
-            getDrawingVerticalLine: (value) {
-              return FlLine(
-                color: Colors.white.withOpacity(0.1),
-                strokeWidth: 1,
-              );
-            },
-          ),
-          titlesData: FlTitlesData(
-            bottomTitles: _getBottomTitles(records, isWeekly), // Use the improved labels
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  if (value % 2 != 0) return const SizedBox();
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Text(
-                      '${value.toInt()}h',
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Based on the last ${_monthlyRecords.length} sleep records',
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  if (_showIrregularities) ...[
+                    const Text(
+                      'Apnea Events Trend',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 12,
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  );
-                },
-                reservedSize: 32,
-              ),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-          ),
-          borderData: FlBorderData(show: false),
-          minX: 0,
-          maxX: records.length - 1,
-          minY: 0,
-          maxY: 12,
-          lineBarsData: [
-            LineChartBarData(
-              spots: List.generate(
-                records.length,
-                (i) => FlSpot(i.toDouble(), records[i].duration),
-              ),
-              isCurved: true,
-              color: const Color(0xFF6A47BB),
-              barWidth: 3,
-              isStrokeCapRound: true,
-              dotData: FlDotData(
-                show: true,
-                getDotPainter: (spot, percent, barData, index) {
-                  // Use severity colors for the dots to show sleep quality
-                  return FlDotCirclePainter(
-                    radius: 4,
-                    color: _getColorForSeverity(records[index].severity),
-                    strokeWidth: 2,
-                    strokeColor: Colors.white,
-                  );
-                },
-              ),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  colors: [
-                    const Color(0xFF6A47BB).withOpacity(0.4),
-                    const Color(0xFF6A47BB).withOpacity(0.0),
+                    const SizedBox(height: 8),
+                    _buildEnhancedIrregularitiesChart(_monthlyRecords),
+                    const SizedBox(height: 24),
                   ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
+                  if (_showDuration) ...[
+                    const Text(
+                      'Sleep Duration Trend',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildEnhancedDurationChart(_monthlyRecords),
+                    const SizedBox(height: 24),
+                  ],
+                  if (_showSeverity) ...[
+                    const Text(
+                      'Sleep Quality Distribution',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildSeverityPieChart(_monthlyRecords),
+                    const SizedBox(height: 24),
+                  ],
+                  if (_showRecommendations) ...[
+                    const Text(
+                      'Monthly Progress',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildMonthlyProgressIndicators(_monthlyRecords, _monthlyAnalytics),
+                    const SizedBox(height: 24),
+                  ],
+                ],
               ),
             ),
-            // Optimal sleep range (7-8 hours)
-            LineChartBarData(
-              spots: [
-                FlSpot(0, 7),
-                FlSpot(records.length - 1, 7),
-              ],
-              isCurved: false,
-              color: Colors.green.withOpacity(0.5),
-              barWidth: 1,
-              isStrokeCapRound: true,
-              dotData: const FlDotData(show: false),
-              dashArray: [3, 3],
-            ),
-            LineChartBarData(
-              spots: [
-                FlSpot(0, 8),
-                FlSpot(records.length - 1, 8),
-              ],
-              isCurved: false,
-              color: Colors.green.withOpacity(0.5),
-              barWidth: 1,
-              isStrokeCapRound: true,
-              dotData: const FlDotData(show: false),
-              dashArray: [3, 3],
-            ),
-          ],
-          lineTouchData: LineTouchData(
-            touchTooltipData: LineTouchTooltipData(
-              tooltipBgColor: const Color(0xFF6A47BB).withOpacity(0.8),
-              getTooltipItems: (touchedSpots) {
-                return touchedSpots.map((spot) {
-                  final index = spot.x.toInt();
-                  if (index >= records.length || spot.barIndex != 0) return null;
-                  final record = records[index];
-                  return LineTooltipItem(
-                    '${record.date}\n${record.duration} hours\nQuality: ${_getSleepQualityFromSeverity(record.severity)}',
-                    const TextStyle(
+    );
+  }
+
+  // Insights view
+  Widget _buildInsightsView() {
+    final analytics = _calculateAnalytics(_allRecords); // Define the analytics variable
+    
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      color: AppTheme.primaryColor,
+      child: _allRecords.isEmpty
+          ? const Center(
+              child: Text(
+                'No sleep data available for insights',
+                style: TextStyle(color: Colors.white60),
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Sleep Insights & Recommendations',
+                    style: TextStyle(
                       color: Colors.white,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
-                  );
-                }).toList();
-              },
+                  ),
+                  const SizedBox(height: 24),
+                  
+                  // Sleep Stats Card
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Your Sleep Statistics',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildInsightCard(
+                                'Average\nSleep Duration',
+                                '${(analytics['avgDuration'] as double).toStringAsFixed(1)} hrs',
+                                Icons.bedtime_outlined,
+                                AppTheme.primaryColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildInsightCard(
+                                'Average\nApnea Events',
+                                '${(analytics['avgIrregularities'] as double).toStringAsFixed(1)}',
+                                Icons.waves,
+                                _getColorForValue(
+                                  analytics['avgIrregularities'] as double, 
+                                  lowerIsBetter: true,
+                                  good: 5,
+                                  moderate: 15,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildInsightCard(
+                                'Most Common\nSeverity',
+                                _getMostCommonSeverity(
+                                  analytics['lowCount'] as int, 
+                                  analytics['mediumCount'] as int, 
+                                  analytics['highCount'] as int,
+                                ),
+                                Icons.show_chart,
+                                _getSeverityColor(_getMostCommonSeverity(
+                                  analytics['lowCount'] as int, 
+                                  analytics['mediumCount'] as int, 
+                                  analytics['highCount'] as int,
+                                )),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _buildInsightCard(
+                                'Change\nOver Time',
+                                '${(analytics['improvement'] as double).abs().toStringAsFixed(1)}%',
+                                (analytics['improvement'] as double) > 0 
+                                  ? Icons.trending_down 
+                                  : Icons.trending_up,
+                                (analytics['improvement'] as double) > 0 
+                                  ? Colors.green 
+                                  : Colors.red,
+                                suffix: (analytics['improvement'] as double) > 0 
+                                  ? 'Better' 
+                                  : 'Worse',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  // Recommendations
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.lightbulb,
+                              color: Colors.amber,
+                              size: 24,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Personalized Recommendations',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        ...(analytics['recommendedActions'] as List).map((action) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 24,
+                                  height: 24,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryColor.withOpacity(0.2),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.check,
+                                      color: AppTheme.primaryColor,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    action as String,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.amber.withOpacity(0.3),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.info_outline,
+                                color: Colors.amber,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'These recommendations are based on your sleep patterns. For medical advice, please consult a healthcare professional.',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 24),
+                  
+                  if (_showIrregularities) ...[
+                    const Text(
+                      'Apnea Events Overview',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildEnhancedIrregularitiesChart(_allRecords),
+                    const SizedBox(height: 24),
+                  ],
+                  
+                  if (_showSeverity) ...[
+                    const Text(
+                      'Sleep Quality Distribution',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _buildSeverityPieChart(_allRecords),
+                    const SizedBox(height: 24),
+                  ],
+                ],
+              ),
             ),
-          ),
+    );
+  }
+
+  // Helper for insights view
+  Widget _buildInsightCard(String title, String value, IconData icon, Color color, {String? suffix}) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withOpacity(0.2),
+          width: 1,
         ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                icon,
+                color: color,
+                size: 20,
+              ),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              if (suffix != null) ...[
+                const SizedBox(width: 4),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Text(
+                    suffix,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
       ),
     );
   }
   
-  String _getSleepQualityFromSeverity(String severity) {
+  // Helper to get color based on value
+  Color _getColorForValue(double value, {
+    required bool lowerIsBetter,
+    required double good,
+    required double moderate,
+  }) {
+    if (lowerIsBetter) {
+      if (value <= good) return Colors.green;
+      if (value <= moderate) return Colors.orange;
+      return Colors.red;
+    } else {
+      if (value >= good) return Colors.green;
+      if (value >= moderate) return Colors.orange;
+      return Colors.red;
+    }
+  }
+
+  // Helper method to get severity color
+  Color _getSeverityColor(String severity) {
     switch (severity.toLowerCase()) {
-      case 'low': return 'Good';
-      case 'medium': case 'med': return 'Fair';
-      case 'high': return 'Poor';
-      default: return 'Unknown';
+      case 'low':
+        return AppTheme.lowRiskColor;
+      case 'medium':
+      case 'med':
+        return AppTheme.mediumRiskColor;
+      case 'high':
+        return AppTheme.highRiskColor;
+      default:
+        return Colors.grey;
     }
   }
 } 

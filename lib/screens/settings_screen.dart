@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../services/settings_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({Key? key}) : super(key: key);
@@ -9,6 +10,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final SettingsService _settingsService = SettingsService();
   bool _notifyHighRisk = true;
   bool _autoRecording = false;
   double _sensitivityLevel = 2.0;
@@ -21,6 +23,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+    // Listen for settings changes
+    _settingsService.settingsStream.listen((settings) {
+      setState(() {
+        _notifyHighRisk = settings['notify_high_risk'];
+        _autoRecording = settings['auto_recording'];
+        _sensitivityLevel = settings['sensitivity_level'];
+        _recordingDuration = settings['recording_duration'];
+      });
+    });
+  }
+
+  void _loadSettings() {
+    setState(() {
+      _notifyHighRisk = _settingsService.notifyHighRisk;
+      _autoRecording = _settingsService.autoRecording;
+      _sensitivityLevel = _settingsService.sensitivityLevel;
+      _recordingDuration = _settingsService.recordingDuration;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
@@ -31,6 +57,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         backgroundColor: Colors.black,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              _settingsService.resetToDefaults();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Settings reset to defaults'),
+                  backgroundColor: AppTheme.primaryColor,
+                ),
+              );
+            },
+            tooltip: 'Reset to defaults',
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -78,7 +119,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 'Auto Recording',
                 'Start recording automatically at bedtime',
                 _autoRecording,
-                (value) => setState(() => _autoRecording = value),
+                (value) {
+                  _settingsService.setAutoRecording(value);
+                },
               ),
               _buildDropdownTile(),
               _buildHeader('Detection Settings'),
@@ -88,7 +131,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 'High Risk Alerts',
                 'Get notified for high risk results',
                 _notifyHighRisk,
-                (value) => setState(() => _notifyHighRisk = value),
+                (value) {
+                  _settingsService.setNotifyHighRisk(value);
+                },
               ),
               _buildHeader('App Info'),
               ListTile(
@@ -180,8 +225,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   )
                   .toList(),
-          onChanged:
-              (newValue) => setState(() => _recordingDuration = newValue!),
+          onChanged: (newValue) {
+            if (newValue != null) {
+              _settingsService.setRecordingDuration(newValue);
+            }
+          },
         ),
       ),
     );
@@ -216,8 +264,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   divisions: 2,
                   activeColor: AppTheme.primaryColor,
                   inactiveColor: Colors.grey.shade800,
-                  onChanged:
-                      (value) => setState(() => _sensitivityLevel = value),
+                  onChanged: (value) {
+                    _settingsService.setSensitivityLevel(value);
+                  },
                 ),
               ),
               const Text('High', style: TextStyle(color: Colors.white70)),

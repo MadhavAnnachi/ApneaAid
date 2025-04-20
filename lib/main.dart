@@ -9,10 +9,17 @@ import 'screens/login_screen.dart';
 import 'screens/signup_screen.dart';
 import 'screens/profile_screen.dart';
 import 'services/auth_service.dart';
+import 'services/sleep_detector_service.dart';
+import 'services/settings_service.dart';
 import 'theme/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Ensure services are initialized
+  SleepDetectorService();
+  SettingsService();
+  
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -51,29 +58,27 @@ class _ApneaAidAppState extends State<ApneaAidApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Apnea-Aid',
+      title: 'APNEA-AID',
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
-      // Show splash screen until we determine auth state
       home: !_isInitialized
           ? const SplashScreen()
-          : _isLoggedIn 
-              ? const HomeScreen() 
+          : _isLoggedIn
+              ? const MainTabScreen()
               : const LoginScreen(),
       routes: {
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignupScreen(),
-        '/home': (context) => const HomeScreen(),
-        '/settings': (context) => const SettingsScreen(),
+        '/main': (context) => const MainTabScreen(),
+        '/profile': (context) => const ProfileScreen(),
         '/history': (context) => const HistoryScreen(),
         '/trends': (context) => const TrendsScreen(),
-        '/profile': (context) => const ProfileScreen(),
+        '/settings': (context) => const SettingsScreen(),
       },
-      debugShowCheckedModeBanner: false,
     );
   }
 }
 
-// Simple splash screen to show while checking auth state
 class SplashScreen extends StatelessWidget {
   const SplashScreen({Key? key}) : super(key: key);
 
@@ -85,30 +90,109 @@ class SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
-              Icons.nightlight_round,
-              size: 80,
-              color: AppTheme.primaryColor,
+            // App logo
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppTheme.primaryColor,
+                    AppTheme.primaryColor.withOpacity(0.7),
+                  ],
+                ),
+              ),
+              child: const Icon(
+                Icons.bedtime,
+                size: 60,
+                color: Colors.white,
+              ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             const Text(
               'APNEA-AID',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 28,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
-                letterSpacing: 2,
               ),
             ),
-            const SizedBox(height: 48),
-            CircularProgressIndicator(
-              color: AppTheme.primaryColor,
-              strokeWidth: 3,
-              backgroundColor: Colors.white.withOpacity(0.1),
+            const SizedBox(height: 24),
+            // Loading indicator
+            const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryColor),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class MainTabScreen extends StatefulWidget {
+  const MainTabScreen({Key? key}) : super(key: key);
+
+  @override
+  State<MainTabScreen> createState() => _MainTabScreenState();
+}
+
+class _MainTabScreenState extends State<MainTabScreen> {
+  int _selectedIndex = 0;
+  
+  final List<Widget> _screens = [
+    const HomeScreen(),
+    const HistoryScreen(),
+    const TrendsScreen(),
+    const SettingsScreen(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: const SizedBox.shrink(),
+    );
+  }
+}
+
+class AppContainer extends StatefulWidget {
+  const AppContainer({Key? key}) : super(key: key);
+
+  @override
+  State<AppContainer> createState() => _AppContainerState();
+}
+
+class _AppContainerState extends State<AppContainer> {
+  int _selectedIndex = 0;
+  
+  // Define the different screen components
+  final List<Widget> _screens = [
+    const HomeScreen(),
+    const HistoryScreen(),
+    const TrendsScreen(),
+    const SettingsScreen(),
+  ];
+  
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: _screens[_selectedIndex],
+      // Removed the bottomNavigationBar to avoid duplication with the custom navigation in HomeScreen
     );
   }
 }
