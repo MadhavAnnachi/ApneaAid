@@ -49,19 +49,13 @@ class _SignupScreenState extends State<SignupScreen> {
         password: _passwordController.text,
       );
       
-      if (user != null) {
-        // Navigate to home screen on successful signup
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        setState(() {
-          _errorMessage = 'Failed to create account. Please try again.';
-          _isLoading = false;
-        });
-      }
+      // If we get here, signup was successful
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/main');
     } catch (e) {
       setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
+        // Display the specific error message from the auth service
+        _errorMessage = e.toString();
         _isLoading = false;
       });
     }

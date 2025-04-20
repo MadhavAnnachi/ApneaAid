@@ -41,19 +41,13 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text,
       );
       
-      if (user != null) {
-        // Navigate to home screen on successful login
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        setState(() {
-          _errorMessage = 'Invalid email or password';
-          _isLoading = false;
-        });
-      }
+      // If we get here, login was successful
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(context, '/main');
     } catch (e) {
       setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
+        // Display the specific error message from the auth service
+        _errorMessage = e.toString();
         _isLoading = false;
       });
     }

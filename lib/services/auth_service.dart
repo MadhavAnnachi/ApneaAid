@@ -64,7 +64,7 @@ class AuthService {
     }
   }
   
-  // Store user credentials for login
+  // Save user credentials for login
   Future<void> _saveCredentials(String email, String password) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -79,9 +79,45 @@ class AuthService {
       if (!exists) {
         credentials.add('$email:$password');
         await prefs.setStringList('user_credentials', credentials);
+        
+        // Also add to registered_users list if not exists
+        try {
+          final userListJson = prefs.getStringList('registered_users') ?? [];
+          final existingUsers = userListJson
+              .map((json) => User.fromMap(jsonDecode(json)))
+              .toList();
+              
+          final existingEmails = existingUsers.map((u) => u.email).toList();
+          
+          if (!existingEmails.contains(email)) {
+            final newUser = User(
+              id: const Uuid().v4(),
+              firstName: email.split('@')[0],
+              lastName: '',
+              email: email,
+              createdAt: DateTime.now(),
+            );
+            
+            userListJson.add(jsonEncode(newUser.toMap()));
+            await prefs.setStringList('registered_users', userListJson);
+          }
+        } catch (e) {
+          // If error occurs, create the registered_users list
+          debugPrint('Creating registered_users list for the first time');
+          final newUser = User(
+            id: const Uuid().v4(),
+            firstName: email.split('@')[0],
+            lastName: '',
+            email: email,
+            createdAt: DateTime.now(),
+          );
+          
+          await prefs.setStringList('registered_users', [jsonEncode(newUser.toMap())]);
+        }
       }
     } catch (e) {
       debugPrint('👤 AuthService ERROR saving credentials: $e');
+      rethrow; // Rethrow to let callers handle the error
     }
   }
   
@@ -93,6 +129,21 @@ class AuthService {
     required String password,
   }) async {
     try {
+      // Check for existing users with the same email
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getStringList('user_credentials') ?? [];
+      
+      // Check if email already exists
+      final exists = credentials.any((cred) {
+        final parts = cred.split(':');
+        return parts.length > 0 && parts[0] == email;
+      });
+      
+      if (exists) {
+        debugPrint('👤 AuthService: Signup failed - email already exists');
+        throw 'Email already exists';
+      }
+      
       // Simulate network delay
       await Future.delayed(const Duration(seconds: 1));
       
@@ -105,6 +156,17 @@ class AuthService {
         createdAt: DateTime.now(),
       );
       
+      // Initialize registered_users if it doesn't exist
+      try {
+        // Get existing users
+        final userListJson = prefs.getStringList('registered_users') ?? [];
+        userListJson.add(jsonEncode(user.toMap()));
+        await prefs.setStringList('registered_users', userListJson);
+      } catch (e) {
+        // If error occurs, create the registered_users list
+        await prefs.setStringList('registered_users', [jsonEncode(user.toMap())]);
+      }
+      
       // Save user and credentials
       await _saveUserToStorage(user);
       await _saveCredentials(email, password);
@@ -116,7 +178,7 @@ class AuthService {
       return user;
     } catch (e) {
       debugPrint('👤 AuthService ERROR during signup: $e');
-      return null;
+      rethrow; // Rethrow for specific error handling
     }
   }
   
@@ -133,6 +195,11 @@ class AuthService {
       final prefs = await SharedPreferences.getInstance();
       final credentials = prefs.getStringList('user_credentials') ?? [];
       
+      if (credentials.isEmpty) {
+        debugPrint('👤 AuthService: Login failed - no credentials found');
+        throw 'No user accounts found. Please sign up first.';
+      }
+      
       // Check if credentials match
       final match = credentials.firstWhere(
         (cred) {
@@ -144,12 +211,43 @@ class AuthService {
       
       if (match.isEmpty) {
         // No matching credentials
-        debugPrint('👤 AuthService: Login failed - incorrect credentials');
-        return null;
+        // Check if the email exists but password is wrong
+        final emailExists = credentials.any((cred) {
+          final parts = cred.split(':');
+          return parts.length > 0 && parts[0] == email;
+        });
+        
+        if (emailExists) {
+          debugPrint('👤 AuthService: Login failed - incorrect password');
+          throw 'Incorrect password';
+        } else {
+          debugPrint('👤 AuthService: Login failed - email not found');
+          throw 'Email not found. Please sign up.';
+        }
       }
       
       // Get saved users
       final userList = await getRegisteredUsers();
+      
+      if (userList.isEmpty) {
+        // Initialize registered_users if empty
+        final newUser = User(
+          id: const Uuid().v4(),
+          firstName: email.split('@')[0],
+          lastName: '',
+          email: email,
+          createdAt: DateTime.now(),
+        );
+        
+        await prefs.setStringList('registered_users', [jsonEncode(newUser.toMap())]);
+        
+        // Save and update current user
+        await _saveUserToStorage(newUser);
+        _currentUser = newUser;
+        _userController.add(_currentUser);
+        
+        return newUser;
+      }
       
       // Find user with matching email
       final user = userList.firstWhere(
@@ -172,7 +270,7 @@ class AuthService {
       return user;
     } catch (e) {
       debugPrint('👤 AuthService ERROR during login: $e');
-      return null;
+      rethrow; // Rethrow for specific error handling
     }
   }
   
