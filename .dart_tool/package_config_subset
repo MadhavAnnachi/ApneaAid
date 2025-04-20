@@ -18,6 +18,10 @@ collection
 3.4
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/collection-1.19.1/
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/collection-1.19.1/lib/
+crypto
+3.4
+file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/crypto-3.0.6/
+file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/crypto-3.0.6/lib/
 cupertino_icons
 3.1
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/cupertino_icons-1.0.8/
@@ -38,6 +42,10 @@ file
 3.0
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/file-7.0.1/
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/file-7.0.1/lib/
+fixnum
+3.1
+file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/fixnum-1.1.1/
+file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/fixnum-1.1.1/lib/
 fl_chart
 3.0
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/fl_chart-0.63.0/
@@ -146,6 +154,10 @@ source_span
 3.1
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/source_span-1.10.1/
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/source_span-1.10.1/lib/
+sprintf
+2.12
+file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/sprintf-7.0.0/
+file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/sprintf-7.0.0/lib/
 stack_trace
 3.4
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/stack_trace-1.12.1/
@@ -166,6 +178,14 @@ test_api
 3.5
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/test_api-0.7.4/
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/test_api-0.7.4/lib/
+typed_data
+3.5
+file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/typed_data-1.4.0/
+file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/typed_data-1.4.0/lib/
+uuid
+3.0
+file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/uuid-4.5.1/
+file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/uuid-4.5.1/lib/
 vector_math
 2.14
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/vector_math-2.1.4/
@@ -182,7 +202,7 @@ xdg_directories
 3.3
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/xdg_directories-1.1.0/
 file:///C:/Users/Tarun%20Jain/AppData/Local/Pub/Cache/hosted/pub.dev/xdg_directories-1.1.0/lib/
-respireguard
+apnea_aid
 3.7
 file:///C:/work/Aarush/ApneaAid/
 file:///C:/work/Aarush/ApneaAid/lib/

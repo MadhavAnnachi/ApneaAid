@@ -3,6 +3,9 @@ import 'dart:math' as math;
 import '../theme/app_theme.dart';
 import '../services/sleep_detector_service.dart';
 import '../models/sleep_record.dart';
+import '../services/auth_service.dart';
+import '../models/user.dart';
+import '../screens/profile_screen.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:async';
 
@@ -16,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen>
     with SingleTickerProviderStateMixin {
   final SleepDetectorService _sleepDetectorService = SleepDetectorService();
+  final AuthService _authService = AuthService();
   late AnimationController _animationController;
   late Animation<double> _pulseAnimation;
   late Animation<double> _rotationAnimation;
@@ -28,6 +32,10 @@ class _HomeScreenState extends State<HomeScreen>
   // Last sleep sessions data
   List<SleepRecord> _recentRecords = [];
   StreamSubscription? _recordsSubscription;
+  StreamSubscription? _userSubscription;
+  
+  // User data
+  User? _currentUser;
 
   @override
   void initState() {
@@ -56,6 +64,18 @@ class _HomeScreenState extends State<HomeScreen>
     
     // Load recent records and set up subscription for updates
     _setupRecordsHandling();
+    
+    // Set up user subscription
+    _userSubscription = _authService.userStream.listen((user) {
+      if (mounted) {
+        setState(() {
+          _currentUser = user;
+        });
+      }
+    });
+    
+    // Get current user immediately
+    _currentUser = _authService.currentUser;
   }
   
   @override
@@ -102,6 +122,7 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     _animationController.dispose();
     _recordsSubscription?.cancel();
+    _userSubscription?.cancel();
     _sleepDetectorService.dispose();
     _recordingTimer?.cancel();
     super.dispose();
@@ -253,16 +274,43 @@ class _HomeScreenState extends State<HomeScreen>
                             letterSpacing: 1.2,
                           ),
                         ),
-                        // Notification icon with more elegant styling
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.notifications_none_outlined,
-                            color: Colors.white70,
+                        // Replace notification icon with profile avatar
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context, 
+                              MaterialPageRoute(
+                                builder: (context) => const ProfileScreen(),
+                              ),
+                            );
+                          },
+                          child: Hero(
+                            tag: 'profile-avatar',
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryColor,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primaryColor.withOpacity(0.4),
+                                    blurRadius: 8,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  _currentUser?.initials ?? '?',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
