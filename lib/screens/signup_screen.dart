@@ -340,6 +340,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       disabledBackgroundColor: AppTheme.primaryColor.withOpacity(0.5),
+                      foregroundColor: Colors.white,
                     ),
                     child: _isLoading
                         ? const SizedBox(
@@ -353,6 +354,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         : const Text(
                             'CREATE ACCOUNT',
                             style: TextStyle(
+                              color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.5,

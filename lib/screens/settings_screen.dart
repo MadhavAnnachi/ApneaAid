@@ -22,6 +22,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     'Until stopped',
   ];
 
+  // Accessibility settings
+  double _fontSize = 1.0;
+  bool _highContrast = false;
+  String _colorBlindnessMode = 'None';
+  bool _textToSpeech = false;
+  final List<String> _colorBlindnessOptions = [
+    'None',
+    'Protanopia',
+    'Deuteranopia',
+    'Tritanopia',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -33,6 +45,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _autoRecording = settings['auto_recording'];
         _sensitivityLevel = settings['sensitivity_level'];
         _recordingDuration = settings['recording_duration'];
+
+        // Listen for accessibility settings changes
+        _fontSize = settings['font_size'];
+        _highContrast = settings['high_contrast'];
+        _colorBlindnessMode = settings['color_blindness_mode'];
+        _textToSpeech = settings['text_to_speech'];
       });
     });
   }
@@ -43,6 +61,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _autoRecording = _settingsService.autoRecording;
       _sensitivityLevel = _settingsService.sensitivityLevel;
       _recordingDuration = _settingsService.recordingDuration;
+
+      // Load accessibility settings
+      _fontSize = _settingsService.fontSize;
+      _highContrast = _settingsService.highContrast;
+      _colorBlindnessMode = _settingsService.colorBlindnessMode;
+      _textToSpeech = _settingsService.textToSpeech;
     });
   }
 
@@ -90,7 +114,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          
+
           // Add subtle glow on the right side
           Positioned(
             top: 100,
@@ -110,7 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          
+
           ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
@@ -126,6 +150,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildDropdownTile(),
               _buildHeader('Detection Settings'),
               _buildSliderTile(),
+
+              // Add Accessibility Settings Section
+              _buildHeader('Accessibility Settings'),
+              _buildFontSizeSliderTile(),
+              _buildSwitchTile(
+                'High Contrast',
+                'Enhance text visibility with higher contrast',
+                _highContrast,
+                (value) {
+                  _settingsService.setHighContrast(value);
+                },
+              ),
+              _buildColorBlindnessTile(),
+              _buildSwitchTile(
+                'Text-to-Speech',
+                'Read on-screen content aloud',
+                _textToSpeech,
+                (value) {
+                  _settingsService.setTextToSpeech(value);
+                },
+              ),
+
               _buildHeader('Notifications'),
               _buildSwitchTile(
                 'High Risk Alerts',
@@ -273,6 +319,110 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  // New Font Size Slider Tile
+  Widget _buildFontSizeSliderTile() {
+    String fontSizeLabel = 'Normal';
+    if (_fontSize <= 0.85) {
+      fontSizeLabel = 'Small';
+    } else if (_fontSize <= 1.0) {
+      fontSizeLabel = 'Normal';
+    } else if (_fontSize <= 1.15) {
+      fontSizeLabel = 'Large';
+    } else {
+      fontSizeLabel = 'Extra Large';
+    }
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Font Size', style: TextStyle(color: Colors.white)),
+          const SizedBox(height: 4.0),
+          Text(
+            fontSizeLabel,
+            style: const TextStyle(color: Colors.white70, fontSize: 12.0),
+          ),
+          const SizedBox(height: 8.0),
+          Row(
+            children: [
+              const Text(
+                'A',
+                style: TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+              Expanded(
+                child: Slider(
+                  value: _fontSize,
+                  min: 0.85,
+                  max: 1.3,
+                  divisions: 3,
+                  activeColor: AppTheme.primaryColor,
+                  inactiveColor: Colors.grey.shade800,
+                  onChanged: (value) {
+                    _settingsService.setFontSize(value);
+                  },
+                ),
+              ),
+              const Text(
+                'A',
+                style: TextStyle(color: Colors.white70, fontSize: 20),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // New Color Blindness Dropdown Tile
+  Widget _buildColorBlindnessTile() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4.0),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      child: ListTile(
+        title: const Text(
+          'Color Blindness Mode',
+          style: TextStyle(color: Colors.white),
+        ),
+        subtitle: Text(
+          _colorBlindnessMode,
+          style: const TextStyle(color: Colors.white70),
+        ),
+        trailing: DropdownButton<String>(
+          value: _colorBlindnessMode,
+          dropdownColor: Colors.black,
+          underline: Container(),
+          icon: const Icon(Icons.arrow_drop_down, color: Colors.white),
+          items:
+              _colorBlindnessOptions
+                  .map(
+                    (value) => DropdownMenuItem<String>(
+                      value: value,
+                      child: Text(
+                        value,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  )
+                  .toList(),
+          onChanged: (newValue) {
+            if (newValue != null) {
+              _settingsService.setColorBlindnessMode(newValue);
+            }
+          },
+        ),
       ),
     );
   }

@@ -757,7 +757,9 @@ class _HomeScreenState extends State<HomeScreen>
       
       // Add date - show "Month Day" format instead of just month
       final dateParts = record.date.split(',')[0].split(' ');
-      final shortDate = dateParts.length > 1 ? "${dateParts[0]} ${dateParts[1]}" : dateParts[0];
+      final month = dateParts[0];
+      final day = dateParts.length > 1 ? dateParts[1] : "";
+      final shortDate = "$month $day";
       dates.add(shortDate);
       
       // Add bar
@@ -806,7 +808,8 @@ class _HomeScreenState extends State<HomeScreen>
                       dates[value.toInt()],
                       style: const TextStyle(
                         color: Colors.white54,
-                        fontSize: 10,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   );
@@ -880,7 +883,9 @@ class _HomeScreenState extends State<HomeScreen>
       
       // Add date with "Month Day" format instead of just month
       final dateParts = displayRecords[i].date.split(',')[0].split(' ');
-      final shortDate = dateParts.length > 1 ? "${dateParts[0]} ${dateParts[1]}" : dateParts[0];
+      final month = dateParts[0];
+      final day = dateParts.length > 1 ? dateParts[1] : "";
+      final shortDate = "$month $day";
       dates.add(shortDate);
     }
     
@@ -906,7 +911,8 @@ class _HomeScreenState extends State<HomeScreen>
                       dates[value.toInt()],
                       style: const TextStyle(
                         color: Colors.white54,
-                        fontSize: 10,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   );

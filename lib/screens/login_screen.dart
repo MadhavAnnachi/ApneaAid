@@ -248,6 +248,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                             disabledBackgroundColor: AppTheme.primaryColor.withOpacity(0.5),
+                            foregroundColor: Colors.white,
                           ),
                           child: _isLoading
                               ? const SizedBox(
@@ -261,6 +262,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               : const Text(
                                   'LOGIN',
                                   style: TextStyle(
+                                    color: Colors.white,
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: 1.5,
