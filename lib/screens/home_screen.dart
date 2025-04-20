@@ -9,6 +9,7 @@ import '../screens/profile_screen.dart';
 import '../services/settings_service.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'dart:async';
+import 'package:intl/intl.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -747,9 +748,13 @@ class _HomeScreenState extends State<HomeScreen>
     
     // Sort the records by date (oldest to newest) for chronological display
     final displayRecords = List<SleepRecord>.from(_recentRecords);
+    
+    // Convert string dates to DateTime objects for proper sorting
     displayRecords.sort((a, b) {
-      // Simple string comparison should work for 'MMM d, yyyy' format
-      return a.date.compareTo(b.date);
+      final DateFormat format = DateFormat('MMM d, yyyy');
+      final DateTime dateA = format.parse(a.date);
+      final DateTime dateB = format.parse(b.date);
+      return dateA.compareTo(dateB);
     });
     
     for (var i = 0; i < displayRecords.length; i++) {
@@ -870,8 +875,13 @@ class _HomeScreenState extends State<HomeScreen>
     
     // Sort the records by date (oldest to newest) for chronological display
     final displayRecords = List<SleepRecord>.from(_recentRecords);
+    
+    // Convert string dates to DateTime objects for proper sorting
     displayRecords.sort((a, b) {
-      return a.date.compareTo(b.date);
+      final DateFormat format = DateFormat('MMM d, yyyy');
+      final DateTime dateA = format.parse(a.date);
+      final DateTime dateB = format.parse(b.date);
+      return dateA.compareTo(dateB);
     });
     
     // Prepare data for the chart
