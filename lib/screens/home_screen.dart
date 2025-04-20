@@ -941,7 +941,7 @@ class _HomeScreenState extends State<HomeScreen>
                                         ),
           rightTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
-          ),
+                                        ),
                                         topTitles: const AxisTitles(
             sideTitles: SideTitles(showTitles: false),
                                         ),
